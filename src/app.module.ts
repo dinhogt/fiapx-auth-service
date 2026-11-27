@@ -2,27 +2,37 @@ import { DynamicModule, MiddlewareConsumer, Module, NestModule } from '@nestjs/c
 import { LoggerModule } from 'nestjs-pino';
 import type { IncomingMessage } from 'node:http';
 import { LoginUserUseCase } from './application/login-user.use-case';
+import { RefreshTokenUseCase } from './application/refresh-token.use-case';
 import { RegisterUserUseCase } from './application/register-user.use-case';
-import type { PasswordHasher } from './domain/ports/password-hasher';
 import type { AccessTokenSigner } from './domain/ports/access-token-signer';
 import type { LoginRateLimiter } from './domain/ports/login-rate-limiter';
+import type { PasswordHasher } from './domain/ports/password-hasher';
+import type { RefreshRateLimiter } from './domain/ports/refresh-rate-limiter';
+import type { SecurityEventRecorder } from './domain/ports/security-event-recorder';
 import type { SessionRepository } from './domain/ports/session-repository';
+import type { SessionRevocationStore } from './domain/ports/session-revocation-store';
 import type { UserRepository } from './domain/ports/user-repository';
+import { JoseAccessTokenSigner } from './infrastructure/auth/jose-access-token-signer';
+import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
+import { RedisLoginRateLimiter } from './infrastructure/cache/redis-login-rate-limiter';
+import { RedisRefreshRateLimiter } from './infrastructure/cache/redis-refresh-rate-limiter';
+import { RedisService } from './infrastructure/cache/redis.service';
+import { RedisSessionRevocationStore } from './infrastructure/cache/redis-session-revocation-store';
 import type { AuthEnv } from './infrastructure/config/env';
 import {
   ACCESS_TOKEN_SIGNER,
   APP_ENV_CONFIG,
   LOGIN_RATE_LIMITER,
   PASSWORD_HASHER,
+  REFRESH_RATE_LIMITER,
+  SECURITY_EVENT_RECORDER,
   SESSION_REPOSITORY,
+  SESSION_REVOCATION_STORE,
   USER_REPOSITORY,
 } from './infrastructure/config/tokens';
-import { JoseAccessTokenSigner } from './infrastructure/auth/jose-access-token-signer';
-import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
-import { RedisLoginRateLimiter } from './infrastructure/cache/redis-login-rate-limiter';
-import { RedisService } from './infrastructure/cache/redis.service';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
+import { PinoSecurityEventRecorder } from './infrastructure/observability/pino-security-event-recorder';
 import { pinoRedactPaths } from './infrastructure/observability/redact';
 import { PrismaSessionRepository } from './infrastructure/prisma/prisma-session.repository';
 import { PrismaUserRepository } from './infrastructure/prisma/prisma-user.repository';
@@ -68,7 +78,10 @@ export class AppModule implements NestModule {
         { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
         { provide: SESSION_REPOSITORY, useClass: PrismaSessionRepository },
         { provide: LOGIN_RATE_LIMITER, useClass: RedisLoginRateLimiter },
+        { provide: REFRESH_RATE_LIMITER, useClass: RedisRefreshRateLimiter },
         { provide: ACCESS_TOKEN_SIGNER, useClass: JoseAccessTokenSigner },
+        { provide: SESSION_REVOCATION_STORE, useClass: RedisSessionRevocationStore },
+        { provide: SECURITY_EVENT_RECORDER, useClass: PinoSecurityEventRecorder },
         {
           provide: RegisterUserUseCase,
           useFactory: (users: UserRepository, hasher: PasswordHasher) =>
@@ -99,6 +112,33 @@ export class AppModule implements NestModule {
             PASSWORD_HASHER,
             LOGIN_RATE_LIMITER,
             ACCESS_TOKEN_SIGNER,
+            APP_ENV_CONFIG,
+          ],
+        },
+        {
+          provide: RefreshTokenUseCase,
+          useFactory: (
+            sessions: SessionRepository,
+            rateLimiter: RefreshRateLimiter,
+            revocation: SessionRevocationStore,
+            signer: AccessTokenSigner,
+            security: SecurityEventRecorder,
+            appEnv: AuthEnv,
+          ) =>
+            new RefreshTokenUseCase(
+              sessions,
+              rateLimiter,
+              revocation,
+              signer,
+              security,
+              appEnv.REFRESH_IDLE_TTL,
+            ),
+          inject: [
+            SESSION_REPOSITORY,
+            REFRESH_RATE_LIMITER,
+            SESSION_REVOCATION_STORE,
+            ACCESS_TOKEN_SIGNER,
+            SECURITY_EVENT_RECORDER,
             APP_ENV_CONFIG,
           ],
         },

@@ -29,6 +29,9 @@ function makeDeps(overrides: {
   };
   const sessions: SessionRepository = {
     createWithRefresh: jest.fn(async () => undefined),
+    findRefreshWithSessionByHash: jest.fn(async () => null),
+    rotateRefresh: jest.fn(async () => undefined),
+    revokeSession: jest.fn(async () => undefined),
     ...overrides.sessions,
   };
   const hasher: PasswordHasher = {
@@ -122,5 +125,32 @@ describe('LoginUserUseCase', () => {
         clientIp: '127.0.0.1',
       }),
     ).resolves.toEqual({ ok: false, code: 'RATE_LIMIT_UNAVAILABLE' });
+  });
+
+  it('rejects invalid email and empty password', async () => {
+    const { useCase } = makeDeps();
+    await expect(
+      useCase.execute({ email: 'not-an-email', password: 'x', clientIp: '1.1.1.1' }),
+    ).resolves.toEqual({ ok: false, code: 'INVALID_EMAIL' });
+    await expect(
+      useCase.execute({ email: 'ana@example.com', password: '', clientIp: '1.1.1.1' }),
+    ).resolves.toEqual({ ok: false, code: 'INVALID_PASSWORD' });
+  });
+
+  it('rethrows unexpected rate-limit errors', async () => {
+    const { useCase } = makeDeps({
+      rateLimiter: {
+        consume: jest.fn(async () => {
+          throw new Error('boom');
+        }),
+      },
+    });
+    await expect(
+      useCase.execute({
+        email: 'ana@example.com',
+        password: 'Str0ng-Passw0rd!',
+        clientIp: '127.0.0.1',
+      }),
+    ).rejects.toThrow('boom');
   });
 });

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { LoginUserUseCase } from '../../application/login-user.use-case';
+import { RefreshTokenUseCase } from '../../application/refresh-token.use-case';
 import { RegisterUserUseCase } from '../../application/register-user.use-case';
 import type { AuthEnv } from '../../infrastructure/config/env';
 import { CORRELATION_HEADER } from './correlation.middleware';
@@ -18,6 +19,8 @@ describe('AuthController', () => {
     USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
     TRUST_GATEWAY_IP: false,
   } as AuthEnv;
+
+  const refreshUser = { execute: jest.fn() } as unknown as RefreshTokenUseCase;
 
   function makeReq(headers: Record<string, string> = {}): Request {
     return {
@@ -43,7 +46,7 @@ describe('AuthController', () => {
         ),
       } as unknown as RegisterUserUseCase;
       const loginUser = { execute: jest.fn() } as unknown as LoginUserUseCase;
-      const controller = new AuthController(registerUser, loginUser, env);
+      const controller = new AuthController(registerUser, loginUser, refreshUser, env);
 
       const body = await controller.register(
         { name: 'Ana', email: 'ana@example.com', password: 'Str0ng-Passw0rd!' },
@@ -65,6 +68,7 @@ describe('AuthController', () => {
       const controller = new AuthController(
         registerUser,
         { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refreshUser,
         env,
       );
 
@@ -80,11 +84,38 @@ describe('AuthController', () => {
       const controller = new AuthController(
         { execute: jest.fn() } as unknown as RegisterUserUseCase,
         { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refreshUser,
         env,
       );
       await expect(controller.register('nope', makeReq())).rejects.toBeInstanceOf(
         BadRequestException,
       );
+    });
+
+    it('maps register domain validation failures', async () => {
+      const codes = [
+        'INVALID_NAME_LENGTH',
+        'INVALID_EMAIL',
+        'INVALID_PASSWORD_LENGTH',
+        'COMMON_PASSWORD',
+        'UNKNOWN_CODE',
+      ] as const;
+      for (const code of codes) {
+        const controller = new AuthController(
+          {
+            execute: jest.fn(() => Promise.resolve({ ok: false as const, code })),
+          } as unknown as RegisterUserUseCase,
+          { execute: jest.fn() } as unknown as LoginUserUseCase,
+          refreshUser,
+          env,
+        );
+        await expect(
+          controller.register(
+            { name: 'Ana', email: 'ana@example.com', password: 'Str0ng-Passw0rd!' },
+            makeReq(),
+          ),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      }
     });
   });
 
@@ -107,6 +138,7 @@ describe('AuthController', () => {
       const controller = new AuthController(
         { execute: jest.fn() } as unknown as RegisterUserUseCase,
         loginUser,
+        refreshUser,
         env,
       );
 
@@ -130,6 +162,7 @@ describe('AuthController', () => {
       const controller = new AuthController(
         { execute: jest.fn() } as unknown as RegisterUserUseCase,
         loginUser,
+        refreshUser,
         env,
       );
       await expect(
@@ -147,6 +180,7 @@ describe('AuthController', () => {
       const controller = new AuthController(
         { execute: jest.fn() } as unknown as RegisterUserUseCase,
         loginUser,
+        refreshUser,
         env,
       );
       try {
@@ -159,6 +193,134 @@ describe('AuthController', () => {
       await expect(
         controller.login({ email: 'ana@example.com', password: 'x' }, makeReq()),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('rejects invalid login body and maps validation/default failures', async () => {
+      const loginUser = {
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce({ ok: false as const, code: 'INVALID_EMAIL' })
+          .mockResolvedValueOnce({ ok: false as const, code: 'INVALID_PASSWORD' })
+          .mockResolvedValueOnce({ ok: false as const, code: 'UNKNOWN' }),
+      } as unknown as LoginUserUseCase;
+      const controller = new AuthController(
+        { execute: jest.fn() } as unknown as RegisterUserUseCase,
+        loginUser,
+        refreshUser,
+        env,
+      );
+      await expect(controller.login({}, makeReq())).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        controller.login({ email: 'ana@example.com', password: 'x' }, makeReq()),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        controller.login({ email: 'ana@example.com', password: 'x' }, makeReq()),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        controller.login({ email: 'ana@example.com', password: 'x' }, makeReq()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe('refresh', () => {
+    it('returns a new TokenPair on success', async () => {
+      const refresh = {
+        execute: jest.fn(() =>
+          Promise.resolve({
+            ok: true as const,
+            value: {
+              accessToken: 'jwt2',
+              tokenType: 'Bearer' as const,
+              expiresIn: 900,
+              refreshToken: 'refresh2',
+              refreshExpiresIn: 3600,
+            },
+          }),
+        ),
+      } as unknown as RefreshTokenUseCase;
+      const controller = new AuthController(
+        { execute: jest.fn() } as unknown as RegisterUserUseCase,
+        { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refresh,
+        env,
+      );
+      await expect(
+        controller.refresh({ refreshToken: 'old' }, makeReq()),
+      ).resolves.toMatchObject({ refreshToken: 'refresh2' });
+    });
+
+    it('maps REFRESH_REUSE to 401', async () => {
+      const refresh = {
+        execute: jest.fn(() => Promise.resolve({ ok: false as const, code: 'REFRESH_REUSE' })),
+      } as unknown as RefreshTokenUseCase;
+      const controller = new AuthController(
+        { execute: jest.fn() } as unknown as RegisterUserUseCase,
+        { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refresh,
+        env,
+      );
+      await expect(controller.refresh({ refreshToken: 'old' }, makeReq())).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
+
+    it('maps refresh rate-limit failures', async () => {
+      const refresh = {
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce({ ok: false as const, code: 'RATE_LIMITED' })
+          .mockResolvedValueOnce({ ok: false as const, code: 'RATE_LIMIT_UNAVAILABLE' }),
+      } as unknown as RefreshTokenUseCase;
+      const controller = new AuthController(
+        { execute: jest.fn() } as unknown as RegisterUserUseCase,
+        { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refresh,
+        env,
+      );
+      try {
+        await controller.refresh({ refreshToken: 'old' }, makeReq());
+        fail('expected 429');
+      } catch (error: unknown) {
+        expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      }
+      await expect(controller.refresh({ refreshToken: 'old' }, makeReq())).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('rejects invalid refresh body', async () => {
+      const controller = new AuthController(
+        { execute: jest.fn() } as unknown as RegisterUserUseCase,
+        { execute: jest.fn() } as unknown as LoginUserUseCase,
+        refreshUser,
+        env,
+      );
+      await expect(controller.refresh({}, makeReq())).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('maps remaining refresh failure codes to 401', async () => {
+      const codes = [
+        'INVALID_REFRESH_TOKEN',
+        'REFRESH_EXPIRED',
+        'SESSION_IDLE_EXPIRED',
+        'SESSION_ABSOLUTE_EXPIRED',
+        'SESSION_REVOKED',
+        'UNKNOWN',
+      ] as const;
+      for (const code of codes) {
+        const refresh = {
+          execute: jest.fn(() => Promise.resolve({ ok: false as const, code })),
+        } as unknown as RefreshTokenUseCase;
+        const controller = new AuthController(
+          { execute: jest.fn() } as unknown as RegisterUserUseCase,
+          { execute: jest.fn() } as unknown as LoginUserUseCase,
+          refresh,
+          env,
+        );
+        await expect(
+          controller.refresh({ refreshToken: 'old' }, makeReq()),
+        ).rejects.toBeInstanceOf(UnauthorizedException);
+      }
     });
   });
 });

@@ -16,6 +16,7 @@ import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { LoginUserUseCase } from '../../application/login-user.use-case';
+import { RefreshTokenUseCase } from '../../application/refresh-token.use-case';
 import { RegisterUserUseCase } from '../../application/register-user.use-case';
 import type { AuthEnv } from '../../infrastructure/config/env';
 import { APP_ENV_CONFIG } from '../../infrastructure/config/tokens';
@@ -34,6 +35,10 @@ const loginBodySchema = z.object({
   password: z.string(),
 });
 
+const refreshBodySchema = z.object({
+  refreshToken: z.string(),
+});
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -42,6 +47,7 @@ export class AuthController {
   constructor(
     private readonly registerUser: RegisterUserUseCase,
     private readonly loginUser: LoginUserUseCase,
+    private readonly refreshToken: RefreshTokenUseCase,
     @Inject(APP_ENV_CONFIG) private readonly env: AuthEnv,
   ) {}
 
@@ -109,6 +115,32 @@ export class AuthController {
 
     return result.value;
   }
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Body() body: unknown, @Req() req: Request) {
+    const parsed = refreshBodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        detail: 'Dados de refresh inválidos.',
+        errors: parsed.error.issues.map((issue) => ({
+          field: issue.path.join('.') || 'body',
+          message: issue.message,
+        })),
+      });
+    }
+
+    const result = await this.refreshToken.execute({
+      refreshToken: parsed.data.refreshToken,
+      clientIp: resolveClientIp(req, this.env.TRUST_GATEWAY_IP),
+    });
+
+    if (!result.ok) {
+      throw mapRefreshFailure(result.code);
+    }
+
+    return result.value;
+  }
 }
 
 function mapRegisterFailure(code: string): Error {
@@ -159,6 +191,27 @@ function mapLoginFailure(code: string): Error {
       return new ServiceUnavailableException('Serviço de autenticação temporariamente indisponível.');
     default:
       return new UnauthorizedException('Credenciais inválidas.');
+  }
+}
+
+function mapRefreshFailure(code: string): Error {
+  switch (code) {
+    case 'RATE_LIMITED':
+      return new HttpException(
+        'Muitas tentativas. Tente novamente em breve.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    case 'RATE_LIMIT_UNAVAILABLE':
+      return new ServiceUnavailableException('Serviço de autenticação temporariamente indisponível.');
+    case 'INVALID_REFRESH_TOKEN':
+    case 'REFRESH_REUSE':
+    case 'REFRESH_EXPIRED':
+    case 'SESSION_IDLE_EXPIRED':
+    case 'SESSION_ABSOLUTE_EXPIRED':
+    case 'SESSION_REVOKED':
+      return new UnauthorizedException('Sessão inválida.');
+    default:
+      return new UnauthorizedException('Sessão inválida.');
   }
 }
 

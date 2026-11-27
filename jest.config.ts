@@ -17,5 +17,7 @@ const config: Config = {
   ],
   coverageReporters: ['text-summary', 'lcov'],
   coverageThreshold: { global: { statements: 80, branches: 80, functions: 80, lines: 80 } },
+  // Nest/ioredis keep sockets open across suites; force exit after coverage.
+  forceExit: true,
 };
 export default config;

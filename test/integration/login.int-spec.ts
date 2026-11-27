@@ -86,7 +86,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
   it('AC-12: wrong password returns 401; 6th attempt returns 429', async () => {
     const email = `login-${randomUUID()}@example.com`;
     const password = 'Str0ng-Passw0rd!';
-    const clientIp = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    const clientIp = `login-ac12-${randomUUID()}`;
 
     await request(app.getHttpServer())
       .post('/auth/register')
@@ -116,7 +116,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
   it('returns TokenPair with a JWKS-verifiable access token on success', async () => {
     const email = `ok-${randomUUID()}@example.com`;
     const password = 'Str0ng-Passw0rd!';
-    const clientIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
+    const clientIp = `login-ok-${randomUUID()}`;
 
     await request(app.getHttpServer())
       .post('/auth/register')
