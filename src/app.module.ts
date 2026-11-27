@@ -8,6 +8,7 @@ import {
   PASSWORD_HASHER,
   USER_REPOSITORY,
 } from './infrastructure/config/tokens';
+import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
 import { pinoRedactPaths } from './infrastructure/observability/redact';
@@ -20,6 +21,7 @@ import {
 } from './interfaces/http/correlation.middleware';
 import { HealthController } from './interfaces/http/health.controller';
 import { MetricsController } from './interfaces/http/metrics.controller';
+import { WellKnownController } from './interfaces/http/well-known.controller';
 import type { PasswordHasher } from './domain/ports/password-hasher';
 import type { UserRepository } from './domain/ports/user-repository';
 
@@ -44,10 +46,11 @@ export class AppModule implements NestModule {
           },
         }),
       ],
-      controllers: [HealthController, MetricsController, AuthController],
+      controllers: [HealthController, MetricsController, AuthController, WellKnownController],
       providers: [
         { provide: APP_ENV_CONFIG, useValue: env },
         HealthService,
+        JwtKeyService,
         PrismaService,
         { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
         { provide: USER_REPOSITORY, useClass: PrismaUserRepository },

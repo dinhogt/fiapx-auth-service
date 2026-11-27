@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { createTestRsaPem } from '../helpers/rsa-pem';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -21,6 +22,7 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
   let prisma: PrismaClient;
 
   beforeAll(async () => {
+    const { pem, kid } = await createTestRsaPem();
     process.env.NODE_ENV = 'test';
     process.env.APP_ENV = 'test';
     process.env.PORT = '3001';
@@ -34,6 +36,8 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
     process.env.JWKS_URL = 'http://localhost:3001/.well-known/jwks.json';
     process.env.TRUST_GATEWAY_IP = 'false';
     process.env.USER_EVENTS_TOPIC_ARN = TOPIC_ARN;
+    process.env.JWT_PRIVATE_KEY_PEM = pem;
+    process.env.JWT_KID = kid;
 
     const env = loadEnv();
     prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });

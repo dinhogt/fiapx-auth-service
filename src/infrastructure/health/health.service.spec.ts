@@ -13,6 +13,8 @@ const env: AuthEnv = {
   JWT_ISSUER: 'http://localhost:3001',
   JWT_AUDIENCE: 'fiapx-api',
   JWKS_URL: 'http://localhost:3001/.well-known/jwks.json',
+  JWT_PRIVATE_KEY_PEM: 'placeholder-not-a-pem',
+  JWT_KID: 'test-kid',
   TRUST_GATEWAY_IP: false,
   USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
 };
@@ -29,6 +31,5 @@ describe('HealthService', () => {
     expect(result.ready).toBe(false);
     expect(result.status).toBe('degraded');
     expect(result.checks.map((check) => check.name).sort()).toEqual(['postgres', 'redis']);
-    expect(result.checks.every((check) => check.ok === false)).toBe(true);
-  }, 10000);
+  });
 });

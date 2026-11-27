@@ -5031,6 +5031,7 @@ __metadata:
     helmet: "npm:^8.1.0"
     ioredis: "npm:^5.7.0"
     jest: "npm:^29.7.0"
+    jose: "npm:5.10.0"
     nestjs-pino: "npm:^4.4.0"
     pino: "npm:^9.9.0"
     pino-http: "npm:^10.5.0"
@@ -6290,6 +6291,13 @@ __metadata:
   bin:
     jiti: lib/jiti-cli.mjs
   checksum: 10c0/1b1e2310a490dce1aeea3da5f5dfe18273516c20ce48be2e98eb8ea452d5f3dcc8fd0cfd6d28b4052a24c5dbab6e3089b2d7e79f0bce7915b10d750929563c42
+  languageName: node
+  linkType: hard
+
+"jose@npm:5.10.0":
+  version: 5.10.0
+  resolution: "jose@npm:5.10.0"
+  checksum: 10c0/e20d9fc58d7e402f2e5f04e824b8897d5579aae60e64cb88ebdea1395311c24537bf4892f7de413fab1acf11e922797fb1b42269bc8fc65089a3749265ccb7b0
   languageName: node
   linkType: hard
 

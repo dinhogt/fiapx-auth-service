@@ -21,6 +21,8 @@ export const authEnvSchema = z.object({
   JWT_ISSUER: z.string().min(1),
   JWT_AUDIENCE: z.string().min(1),
   JWKS_URL: z.string().url(),
+  JWT_PRIVATE_KEY_PEM: z.string().min(1),
+  JWT_KID: z.string().min(1),
   TRUST_GATEWAY_IP: booleanFromEnv,
   USER_EVENTS_TOPIC_ARN: z.string().min(1),
 });

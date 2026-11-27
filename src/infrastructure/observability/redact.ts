@@ -37,4 +37,6 @@ export const pinoRedactPaths = [
   '*.refreshToken',
   '*.authorization',
   '*.email',
+  'JWT_PRIVATE_KEY_PEM',
+  '*.JWT_PRIVATE_KEY_PEM',
 ];

@@ -12,6 +12,8 @@ const validEnv: NodeJS.ProcessEnv = {
   JWT_ISSUER: 'http://localhost:3001',
   JWT_AUDIENCE: 'fiapx-api',
   JWKS_URL: 'http://localhost:3001/.well-known/jwks.json',
+  JWT_PRIVATE_KEY_PEM: 'placeholder-not-a-pem',
+  JWT_KID: 'test-kid',
   TRUST_GATEWAY_IP: 'false',
   USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
 };
@@ -22,6 +24,7 @@ describe('loadEnv', () => {
     expect(env.PORT).toBe(3001);
     expect(env.TRUST_GATEWAY_IP).toBe(false);
     expect(env.OTEL_SERVICE_NAME).toBe('auth-service');
+    expect(env.JWT_KID).toBe('test-kid');
   });
 
   it('fails when required values are missing', () => {
