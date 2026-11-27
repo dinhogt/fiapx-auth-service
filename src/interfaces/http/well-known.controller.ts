@@ -2,6 +2,7 @@ import { Controller, Get, Header, Inject } from '@nestjs/common';
 import type { AuthEnv } from '../../infrastructure/config/env';
 import { APP_ENV_CONFIG } from '../../infrastructure/config/tokens';
 import { JwtKeyService } from '../../infrastructure/auth/jwt-key.service';
+import { Public } from './public.decorator';
 
 @Controller('.well-known')
 export class WellKnownController {
@@ -10,6 +11,7 @@ export class WellKnownController {
     private readonly jwtKeys: JwtKeyService,
   ) {}
 
+  @Public()
   @Get('openid-configuration')
   @Header('Cache-Control', 'public, max-age=60')
   openidConfiguration(): { issuer: string; jwks_uri: string } {
@@ -19,6 +21,7 @@ export class WellKnownController {
     };
   }
 
+  @Public()
   @Get('jwks.json')
   @Header('Cache-Control', 'public, max-age=60')
   jwks(): ReturnType<JwtKeyService['getJwks']> {

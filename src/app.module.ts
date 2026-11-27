@@ -1,7 +1,10 @@
 import { DynamicModule, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import type { IncomingMessage } from 'node:http';
+import { GetMeUseCase } from './application/get-me.use-case';
 import { LoginUserUseCase } from './application/login-user.use-case';
+import { LogoutUserUseCase } from './application/logout-user.use-case';
 import { RefreshTokenUseCase } from './application/refresh-token.use-case';
 import { RegisterUserUseCase } from './application/register-user.use-case';
 import type { AccessTokenSigner } from './domain/ports/access-token-signer';
@@ -13,6 +16,7 @@ import type { SessionRepository } from './domain/ports/session-repository';
 import type { SessionRevocationStore } from './domain/ports/session-revocation-store';
 import type { UserRepository } from './domain/ports/user-repository';
 import { JoseAccessTokenSigner } from './infrastructure/auth/jose-access-token-signer';
+import { JoseAccessTokenVerifier } from './infrastructure/auth/jose-access-token-verifier';
 import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
 import { RedisLoginRateLimiter } from './infrastructure/cache/redis-login-rate-limiter';
 import { RedisRefreshRateLimiter } from './infrastructure/cache/redis-refresh-rate-limiter';
@@ -21,6 +25,7 @@ import { RedisSessionRevocationStore } from './infrastructure/cache/redis-sessio
 import type { AuthEnv } from './infrastructure/config/env';
 import {
   ACCESS_TOKEN_SIGNER,
+  ACCESS_TOKEN_VERIFIER,
   APP_ENV_CONFIG,
   LOGIN_RATE_LIMITER,
   PASSWORD_HASHER,
@@ -43,6 +48,7 @@ import {
   CorrelationMiddleware,
 } from './interfaces/http/correlation.middleware';
 import { HealthController } from './interfaces/http/health.controller';
+import { JwtAuthGuard } from './interfaces/http/jwt-auth.guard';
 import { MetricsController } from './interfaces/http/metrics.controller';
 import { WellKnownController } from './interfaces/http/well-known.controller';
 
@@ -80,8 +86,10 @@ export class AppModule implements NestModule {
         { provide: LOGIN_RATE_LIMITER, useClass: RedisLoginRateLimiter },
         { provide: REFRESH_RATE_LIMITER, useClass: RedisRefreshRateLimiter },
         { provide: ACCESS_TOKEN_SIGNER, useClass: JoseAccessTokenSigner },
+        { provide: ACCESS_TOKEN_VERIFIER, useClass: JoseAccessTokenVerifier },
         { provide: SESSION_REVOCATION_STORE, useClass: RedisSessionRevocationStore },
         { provide: SECURITY_EVENT_RECORDER, useClass: PinoSecurityEventRecorder },
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
         {
           provide: RegisterUserUseCase,
           useFactory: (users: UserRepository, hasher: PasswordHasher) =>
@@ -141,6 +149,17 @@ export class AppModule implements NestModule {
             SECURITY_EVENT_RECORDER,
             APP_ENV_CONFIG,
           ],
+        },
+        {
+          provide: LogoutUserUseCase,
+          useFactory: (sessions: SessionRepository, revocation: SessionRevocationStore) =>
+            new LogoutUserUseCase(sessions, revocation),
+          inject: [SESSION_REPOSITORY, SESSION_REVOCATION_STORE],
+        },
+        {
+          provide: GetMeUseCase,
+          useFactory: (users: UserRepository) => new GetMeUseCase(users),
+          inject: [USER_REPOSITORY],
         },
       ],
     };

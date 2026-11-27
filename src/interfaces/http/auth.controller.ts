@@ -3,6 +3,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Get,
   HttpCode,
   HttpException,
   HttpStatus,
@@ -15,13 +16,17 @@ import {
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { GetMeUseCase } from '../../application/get-me.use-case';
 import { LoginUserUseCase } from '../../application/login-user.use-case';
+import { LogoutUserUseCase } from '../../application/logout-user.use-case';
 import { RefreshTokenUseCase } from '../../application/refresh-token.use-case';
 import { RegisterUserUseCase } from '../../application/register-user.use-case';
 import type { AuthEnv } from '../../infrastructure/config/env';
 import { APP_ENV_CONFIG } from '../../infrastructure/config/tokens';
 import { resolveClientIp } from './client-ip';
 import { CORRELATION_HEADER, readCorrelationId } from './correlation.middleware';
+import type { AuthenticatedRequest } from './jwt-auth.guard';
+import { Public } from './public.decorator';
 import { buildTraceparent } from './traceparent';
 
 const registerBodySchema = z.object({
@@ -48,9 +53,12 @@ export class AuthController {
     private readonly registerUser: RegisterUserUseCase,
     private readonly loginUser: LoginUserUseCase,
     private readonly refreshToken: RefreshTokenUseCase,
+    private readonly logoutUser: LogoutUserUseCase,
+    private readonly getMe: GetMeUseCase,
     @Inject(APP_ENV_CONFIG) private readonly env: AuthEnv,
   ) {}
 
+  @Public()
   @Post('register')
   @HttpCode(201)
   async register(@Body() body: unknown, @Req() req: Request) {
@@ -89,6 +97,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('login')
   @HttpCode(200)
   async login(@Body() body: unknown, @Req() req: Request) {
@@ -116,6 +125,7 @@ export class AuthController {
     return result.value;
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Body() body: unknown, @Req() req: Request) {
@@ -139,6 +149,38 @@ export class AuthController {
       throw mapRefreshFailure(result.code);
     }
 
+    return result.value;
+  }
+
+  @Post('logout')
+  @HttpCode(204)
+  async logout(@Req() req: AuthenticatedRequest): Promise<void> {
+    const user = req.user;
+    if (!user) {
+      throw new UnauthorizedException('Token ausente ou inválido.');
+    }
+
+    const result = await this.logoutUser.execute({
+      sid: user.sid,
+      userId: user.sub,
+    });
+    if (!result.ok) {
+      throw new UnauthorizedException('Sessão inválida.');
+    }
+  }
+
+  @Get('me')
+  @HttpCode(200)
+  async me(@Req() req: AuthenticatedRequest) {
+    const user = req.user;
+    if (!user) {
+      throw new UnauthorizedException('Token ausente ou inválido.');
+    }
+
+    const result = await this.getMe.execute({ userId: user.sub });
+    if (!result.ok) {
+      throw new UnauthorizedException('Sessão inválida.');
+    }
     return result.value;
   }
 }

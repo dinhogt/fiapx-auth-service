@@ -5,14 +5,18 @@ import { RefreshToken } from '../../domain/refresh-token';
 import { Session } from '../../domain/session';
 
 describe('PrismaSessionRepository', () => {
-  it('returns null when refresh hash is unknown', async () => {
+  it('returns null when refresh hash or session id is unknown', async () => {
     const prisma = {
       refreshToken: {
+        findUnique: jest.fn(async () => null),
+      },
+      session: {
         findUnique: jest.fn(async () => null),
       },
     } as unknown as PrismaService;
     const repo = new PrismaSessionRepository(prisma);
     await expect(repo.findRefreshWithSessionByHash('missing')).resolves.toBeNull();
+    await expect(repo.findById('missing')).resolves.toBeNull();
   });
 
   it('rehydrates refresh+session rows', async () => {

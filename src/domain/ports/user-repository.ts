@@ -21,6 +21,7 @@ export type OutboxInsert = {
 };
 
 export interface UserRepository {
+  findById(id: string): Promise<PersistedUser | null>;
   findByEmail(email: string): Promise<PersistedUser | null>;
   createWithOutbox(user: CreateUserInput, outbox: OutboxInsert): Promise<PersistedUser>;
 }

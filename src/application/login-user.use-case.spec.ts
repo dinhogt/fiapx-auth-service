@@ -23,12 +23,14 @@ function makeDeps(overrides: {
   signer?: Partial<AccessTokenSigner>;
 } = {}) {
   const users: UserRepository = {
+    findById: jest.fn(async () => user),
     findByEmail: jest.fn(async () => user),
     createWithOutbox: jest.fn(),
     ...overrides.users,
   };
   const sessions: SessionRepository = {
     createWithRefresh: jest.fn(async () => undefined),
+    findById: jest.fn(async () => null),
     findRefreshWithSessionByHash: jest.fn(async () => null),
     rotateRefresh: jest.fn(async () => undefined),
     revokeSession: jest.fn(async () => undefined),

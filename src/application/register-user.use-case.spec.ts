@@ -16,6 +16,7 @@ function makeHasher(): PasswordHasher {
 
 function makeRepo(overrides: Partial<UserRepository> = {}): UserRepository {
   return {
+    findById: jest.fn(async () => null),
     findByEmail: jest.fn(async () => null),
     createWithOutbox: jest.fn(async (user) => ({
       id: user.id,

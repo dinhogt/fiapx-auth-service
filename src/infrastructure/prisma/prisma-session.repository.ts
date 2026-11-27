@@ -35,6 +35,23 @@ export class PrismaSessionRepository implements SessionRepository {
     });
   }
 
+  async findById(sessionId: string): Promise<Session | null> {
+    const row = await this.prisma.session.findUnique({ where: { id: sessionId } });
+    if (!row) {
+      return null;
+    }
+    return Session.rehydrate({
+      id: row.id,
+      userId: row.userId,
+      createdAt: row.createdAt,
+      lastUsedAt: row.lastUsedAt,
+      idleExpiresAt: row.idleExpiresAt,
+      absoluteExpiresAt: row.absoluteExpiresAt,
+      revokedAt: row.revokedAt,
+      revokedReason: row.revokedReason,
+    });
+  }
+
   async findRefreshWithSessionByHash(tokenHash: string): Promise<RefreshWithSession | null> {
     const row = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },

@@ -11,6 +11,11 @@ import { PrismaService } from './prisma.service';
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findById(id: string): Promise<PersistedUser | null> {
+    const row = await this.prisma.user.findUnique({ where: { id } });
+    return row ? toPersisted(row) : null;
+  }
+
   async findByEmail(email: string): Promise<PersistedUser | null> {
     const row = await this.prisma.user.findUnique({ where: { email } });
     return row ? toPersisted(row) : null;

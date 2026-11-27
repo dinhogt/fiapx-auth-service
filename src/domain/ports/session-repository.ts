@@ -8,6 +8,7 @@ export type RefreshWithSession = {
 
 export interface SessionRepository {
   createWithRefresh(session: Session, refresh: RefreshToken): Promise<void>;
+  findById(sessionId: string): Promise<Session | null>;
   findRefreshWithSessionByHash(tokenHash: string): Promise<RefreshWithSession | null>;
   rotateRefresh(params: {
     session: Session;
