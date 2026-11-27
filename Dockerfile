@@ -10,7 +10,7 @@ COPY tsconfig*.json nest-cli.json ./
 COPY prisma ./prisma
 COPY src ./src
 RUN --mount=type=secret,id=npm_token \
-  NPM_TOKEN="$(cat /run/secrets/npm_token 2>/dev/null || true)" \
+  export NPM_TOKEN="$(cat /run/secrets/npm_token 2>/dev/null || true)" && \
   yarn prisma generate && yarn build && yarn workspaces focus --production
 
 FROM node:22-bookworm-slim AS runtime
