@@ -16,7 +16,9 @@
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "test": "jest",
     "test:cov": "jest --coverage",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

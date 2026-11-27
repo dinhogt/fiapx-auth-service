@@ -6,3 +6,68 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum SessionRevokedReason {
+  LOGOUT
+  REFRESH_REUSE
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @db.VarChar(120)
+  email        String    @unique @db.Citext
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id                 String                @id @default(uuid()) @db.Uuid
+  userId             String                @map("user_id") @db.Uuid
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt         DateTime              @map("last_used_at") @db.Timestamptz(3)
+  idleExpiresAt      DateTime              @map("idle_expires_at") @db.Timestamptz(3)
+  absoluteExpiresAt  DateTime              @map("absolute_expires_at") @db.Timestamptz(3)
+  revokedAt          DateTime?             @map("revoked_at") @db.Timestamptz(3)
+  revokedReason      SessionRevokedReason? @map("revoked_reason")
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens      RefreshToken[]
+
+  @@index([revokedAt], map: "sessions_revoked_at_idx")
+  @@index([userId], map: "sessions_user_id_idx")
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id            String        @id @default(uuid()) @db.Uuid
+  sessionId     String        @map("session_id") @db.Uuid
+  tokenHash     String        @unique @map("token_hash") @db.Char(64)
+  issuedAt      DateTime      @default(now()) @map("issued_at") @db.Timestamptz(3)
+  expiresAt     DateTime      @map("expires_at") @db.Timestamptz(3)
+  usedAt        DateTime?     @map("used_at") @db.Timestamptz(3)
+  replacedById  String?       @map("replaced_by_id") @db.Uuid
+  session       Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  replacedBy    RefreshToken? @relation("TokenReplacement", fields: [replacedById], references: [id])
+  replacements  RefreshToken[] @relation("TokenReplacement")
+
+  @@index([sessionId], map: "refresh_tokens_session_id_idx")
+  @@map("refresh_tokens")
+}
+
+model Outbox {
+  id          String    @id @default(uuid()) @db.Uuid
+  aggregateId String    @map("aggregate_id") @db.Uuid
+  type        String    @db.VarChar(60)
+  destination String    @db.VarChar(120)
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+
+  @@index([createdAt], map: "outbox_created_at_idx")
+  @@map("outbox")
+}
