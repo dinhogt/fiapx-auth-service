@@ -5,6 +5,7 @@ coverage/
 .env.*
 !.env.example
 !.env.local.example
+test/.integration-runtime.json
 *.pem
 *.key
 *.tfstate*

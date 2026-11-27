@@ -9,13 +9,8 @@ import { SECURITY_EVENT_RECORDER } from '../../src/infrastructure/config/tokens'
 import type { SecurityEventRecorder } from '../../src/domain/ports/security-event-recorder';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
-
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
 type TokenPair = {
   accessToken: string;
@@ -30,20 +25,16 @@ async function bootApp(): Promise<{
   prisma: PrismaClient;
 }> {
   const { pem, kid } = await createTestRsaPem();
-  Object.assign(process.env, {
+  const infra = await applyIntegrationEnv({
     NODE_ENV: 'test',
     APP_ENV: 'test',
     PORT: '3001',
     LOG_LEVEL: 'silent',
-    DATABASE_URL,
-    REDIS_URL,
-    AWS_REGION: 'us-east-1',
     OTEL_SERVICE_NAME: 'auth-service',
     JWT_ISSUER: 'http://127.0.0.1:3999',
     JWT_AUDIENCE: 'fiapx-api',
     JWKS_URL: 'http://127.0.0.1:3999/.well-known/jwks.json',
     TRUST_GATEWAY_IP: 'true',
-    USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
     JWT_PRIVATE_KEY_PEM: pem,
     JWT_KID: kid,
     ACCESS_TTL: '900',
@@ -52,7 +43,7 @@ async function bootApp(): Promise<{
   });
 
   const env = loadEnv();
-  const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: infra.databaseUrl } } });
   await prisma.$connect();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
@@ -85,9 +76,9 @@ describe('POST /auth/refresh (AC-14, AC-15, AC-16)', () => {
 
   beforeAll(async () => {
     ({ app, prisma } = await bootApp());
-    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 1, lazyConnect: true });
+    redis = new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: 1, lazyConnect: true });
     await redis.connect();
-  }, 60_000);
+  }, 180_000);
 
   afterAll(async () => {
     await app?.close();
@@ -131,7 +122,7 @@ describe('POST /auth/refresh (AC-14, AC-15, AC-16)', () => {
       .set('x-client-ip', clientIp)
       .send({ refreshToken: next.refreshToken })
       .expect(200);
-  }, 60_000);
+  }, 180_000);
 
   it('AC-15: reuse revokes sid, sets revoked:sid and records security event', async () => {
     const clientIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
@@ -174,7 +165,7 @@ describe('POST /auth/refresh (AC-14, AC-15, AC-16)', () => {
       .expect(401);
 
     spy.mockRestore();
-  }, 60_000);
+  }, 180_000);
 
   it('AC-16: idle or absolute expired session returns 401', async () => {
     const clientIpIdle = `192.0.2.${Math.floor(Math.random() * 200) + 1}`;
@@ -209,5 +200,5 @@ describe('POST /auth/refresh (AC-14, AC-15, AC-16)', () => {
       .set('x-client-ip', clientIpAbs)
       .send({ refreshToken: tokensAbs.refreshToken })
       .expect(401);
-  }, 60_000);
+  }, 180_000);
 });

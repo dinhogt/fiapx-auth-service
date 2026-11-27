@@ -40,6 +40,9 @@ jobs:
       - run: corepack enable && yarn install --immutable
       - run: yarn lint && yarn format:check && yarn depcruise
       - run: yarn test:cov # unit + integration (Testcontainers), gate de 80%
+        env:
+          CI: true
+          USE_TESTCONTAINERS: true
       - run: yarn build
       - uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         if: ${{ env.SONAR_TOKEN != '' }}

@@ -8,18 +8,10 @@ import { AppModule } from '../../src/app.module';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { OutboxRelayService } from '../../src/infrastructure/messaging/outbox-relay.service';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-const AWS_ENDPOINT = process.env.AWS_ENDPOINT ?? 'http://localhost:4566';
-const USER_CONTACTS_QUEUE_URL =
-  process.env.USER_CONTACTS_QUEUE_URL ?? `${AWS_ENDPOINT}/000000000000/fiapx-local-user-contacts`;
-const TOPIC_ARN =
-  process.env.USER_EVENTS_TOPIC_ARN ?? 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
+let userContactsQueueUrl = '';
 
 async function bootApp(): Promise<{
   app: NestExpressApplication;
@@ -27,32 +19,26 @@ async function bootApp(): Promise<{
   sqs: SQSClient;
 }> {
   const { pem, kid } = await createTestRsaPem();
-  Object.assign(process.env, {
+  const infra = await applyIntegrationEnv({
     NODE_ENV: 'test',
     APP_ENV: 'test',
     PORT: '3001',
     LOG_LEVEL: 'silent',
-    DATABASE_URL,
-    REDIS_URL,
-    AWS_REGION: 'us-east-1',
-    AWS_ENDPOINT,
-    AWS_ACCESS_KEY_ID: 'test',
-    AWS_SECRET_ACCESS_KEY: 'test',
     OTEL_SERVICE_NAME: 'auth-service',
     JWT_ISSUER: 'http://127.0.0.1:3999',
     JWT_AUDIENCE: 'fiapx-api',
     JWKS_URL: 'http://127.0.0.1:3999/.well-known/jwks.json',
     TRUST_GATEWAY_IP: 'false',
-    USER_EVENTS_TOPIC_ARN: TOPIC_ARN,
     JWT_PRIVATE_KEY_PEM: pem,
     JWT_KID: kid,
     ACCESS_TTL: '900',
     REFRESH_IDLE_TTL: '3600',
     SESSION_ABSOLUTE_TTL: '28800',
   });
+  userContactsQueueUrl = infra.userContactsQueueUrl;
 
   const env = loadEnv();
-  const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: infra.databaseUrl } } });
   await prisma.$connect();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
@@ -63,7 +49,7 @@ async function bootApp(): Promise<{
 
   const sqs = new SQSClient({
     region: 'us-east-1',
-    endpoint: AWS_ENDPOINT,
+    endpoint: infra.awsEndpoint,
     credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
   });
 
@@ -74,7 +60,7 @@ async function drainQueue(sqs: SQSClient): Promise<void> {
   for (let i = 0; i < 10; i += 1) {
     const received = await sqs.send(
       new ReceiveMessageCommand({
-        QueueUrl: USER_CONTACTS_QUEUE_URL,
+        QueueUrl: userContactsQueueUrl,
         MaxNumberOfMessages: 10,
         WaitTimeSeconds: 0,
       }),
@@ -87,7 +73,7 @@ async function drainQueue(sqs: SQSClient): Promise<void> {
       if (message.ReceiptHandle) {
         await sqs.send(
           new DeleteMessageCommand({
-            QueueUrl: USER_CONTACTS_QUEUE_URL,
+            QueueUrl: userContactsQueueUrl,
             ReceiptHandle: message.ReceiptHandle,
           }),
         );
@@ -105,7 +91,7 @@ async function waitForUserRegistered(
   while (Date.now() < deadline) {
     const received = await sqs.send(
       new ReceiveMessageCommand({
-        QueueUrl: USER_CONTACTS_QUEUE_URL,
+        QueueUrl: userContactsQueueUrl,
         MaxNumberOfMessages: 10,
         WaitTimeSeconds: 1,
       }),
@@ -118,7 +104,7 @@ async function waitForUserRegistered(
       if (message.ReceiptHandle) {
         await sqs.send(
           new DeleteMessageCommand({
-            QueueUrl: USER_CONTACTS_QUEUE_URL,
+            QueueUrl: userContactsQueueUrl,
             ReceiptHandle: message.ReceiptHandle,
           }),
         );
@@ -138,7 +124,7 @@ describe('Outbox relay → SNS → user-contacts (F2.8)', () => {
 
   beforeAll(async () => {
     ({ app, prisma, sqs } = await bootApp());
-  }, 60_000);
+  }, 180_000);
 
   afterAll(async () => {
     await app?.close();
@@ -182,5 +168,5 @@ describe('Outbox relay → SNS → user-contacts (F2.8)', () => {
     const outbox = await prisma.outbox.findFirstOrThrow({ where: { aggregateId: userId } });
     expect(outbox.publishedAt).not.toBeNull();
     expect(outbox.attempts).toBe(0);
-  }, 60_000);
+  }, 180_000);
 });

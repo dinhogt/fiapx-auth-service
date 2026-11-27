@@ -8,36 +8,24 @@ import { AppModule } from '../../src/app.module';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { SessionRevocationRehydratorService } from '../../src/infrastructure/jobs/session-revocation-rehydrator.service';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
-
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
 async function bootApp(): Promise<{
   app: NestExpressApplication;
   prisma: PrismaClient;
 }> {
   const { pem, kid } = await createTestRsaPem();
-  Object.assign(process.env, {
+  const infra = await applyIntegrationEnv({
     NODE_ENV: 'test',
     APP_ENV: 'test',
     PORT: '3001',
     LOG_LEVEL: 'silent',
-    DATABASE_URL,
-    REDIS_URL,
-    AWS_REGION: 'us-east-1',
-    AWS_ENDPOINT: 'http://localhost:4566',
-    AWS_ACCESS_KEY_ID: 'test',
-    AWS_SECRET_ACCESS_KEY: 'test',
     OTEL_SERVICE_NAME: 'auth-service',
     JWT_ISSUER: 'http://127.0.0.1:3999',
     JWT_AUDIENCE: 'fiapx-api',
     JWKS_URL: 'http://127.0.0.1:3999/.well-known/jwks.json',
     TRUST_GATEWAY_IP: 'true',
-    USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
     JWT_PRIVATE_KEY_PEM: pem,
     JWT_KID: kid,
     ACCESS_TTL: '900',
@@ -46,7 +34,7 @@ async function bootApp(): Promise<{
   });
 
   const env = loadEnv();
-  const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: infra.databaseUrl } } });
   await prisma.$connect();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
@@ -64,9 +52,9 @@ describe('Session revocation rehydration (F2.8)', () => {
 
   beforeAll(async () => {
     ({ app, prisma } = await bootApp());
-    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 1, lazyConnect: true });
+    redis = new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: 1, lazyConnect: true });
     await redis.connect();
-  }, 60_000);
+  }, 180_000);
 
   afterAll(async () => {
     await app?.close();
@@ -110,5 +98,5 @@ describe('Session revocation rehydration (F2.8)', () => {
     await app.get(SessionRevocationRehydratorService).rehydrate();
 
     await expect(redis.get(`revoked:sid:${session.id}`)).resolves.toBe('1');
-  }, 60_000);
+  }, 180_000);
 });
