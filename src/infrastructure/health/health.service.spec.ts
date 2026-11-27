@@ -14,6 +14,7 @@ const env: AuthEnv = {
   JWT_AUDIENCE: 'fiapx-api',
   JWKS_URL: 'http://localhost:3001/.well-known/jwks.json',
   TRUST_GATEWAY_IP: false,
+  USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
 };
 
 describe('HealthService', () => {
