@@ -28,21 +28,13 @@ function makeContext(headers: Record<string, string> = {}, isPublic = false) {
 describe('JwtAuthGuard', () => {
   it('allows public routes without a token', async () => {
     const { reflector, context } = makeContext({}, true);
-    const guard = new JwtAuthGuard(
-      reflector,
-      { verify: jest.fn() },
-      { revoke: jest.fn(), isRevoked: jest.fn() },
-    );
+    const guard = new JwtAuthGuard(reflector, { verify: jest.fn() }, { isRevoked: jest.fn() });
     await expect(guard.canActivate(context as never)).resolves.toBe(true);
   });
 
   it('rejects missing Bearer tokens', async () => {
     const { reflector, context } = makeContext({});
-    const guard = new JwtAuthGuard(
-      reflector,
-      { verify: jest.fn() },
-      { revoke: jest.fn(), isRevoked: jest.fn() },
-    );
+    const guard = new JwtAuthGuard(reflector, { verify: jest.fn() }, { isRevoked: jest.fn() });
     await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
@@ -57,7 +49,7 @@ describe('JwtAuthGuard', () => {
           throw new AccessTokenVerificationError();
         }),
       },
-      { revoke: jest.fn(), isRevoked: jest.fn() },
+      { isRevoked: jest.fn() },
     );
     await expect(invalidGuard.canActivate(invalidCtx as never)).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -69,7 +61,7 @@ describe('JwtAuthGuard', () => {
     const revokedGuard = new JwtAuthGuard(
       r2,
       { verify: jest.fn(async () => ({ sub: 'u1', sid: 's1' })) },
-      { revoke: jest.fn(), isRevoked: jest.fn(async () => true) },
+      { isRevoked: jest.fn(async () => true) },
     );
     await expect(revokedGuard.canActivate(revokedCtx as never)).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -83,7 +75,6 @@ describe('JwtAuthGuard', () => {
       reflector,
       { verify: jest.fn(async () => ({ sub: 'u1', sid: 's1' })) },
       {
-        revoke: jest.fn(),
         isRevoked: jest.fn(async () => {
           throw new SessionRevocationStoreUnavailableError();
         }),
@@ -99,7 +90,7 @@ describe('JwtAuthGuard', () => {
     const guard = new JwtAuthGuard(
       reflector,
       { verify: jest.fn(async () => ({ sub: 'u1', sid: 's1' })) },
-      { revoke: jest.fn(), isRevoked: jest.fn(async () => false) },
+      { isRevoked: jest.fn(async () => false) },
     );
     await expect(guard.canActivate(context as never)).resolves.toBe(true);
     expect(req.user).toEqual({ sub: 'u1', sid: 's1' });

@@ -1,12 +1,11 @@
-export class SessionRevocationStoreUnavailableError extends Error {
-  constructor(message = 'Session revocation store unavailable') {
-    super(message);
-    this.name = 'SessionRevocationStoreUnavailableError';
-  }
-}
+import {
+  SessionRevocationStoreUnavailableError,
+  type SessionRevocationChecker,
+} from '../../shared/jwt-auth/session-revocation';
 
-export interface SessionRevocationStore {
+export { SessionRevocationStoreUnavailableError };
+
+export interface SessionRevocationStore extends SessionRevocationChecker {
   /** Marks sid as revoked in the fast path (TTL = access token lifetime). */
   revoke(sid: string): Promise<void>;
-  isRevoked(sid: string): Promise<boolean>;
 }

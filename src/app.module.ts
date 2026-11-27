@@ -38,6 +38,10 @@ import {
   SESSION_REVOCATION_STORE,
   USER_REPOSITORY,
 } from './infrastructure/config/tokens';
+import {
+  JWT_AUTH_REVOCATION,
+  JWT_AUTH_VERIFIER,
+} from './shared/jwt-auth/tokens';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
 import { SessionRevocationRehydratorService } from './infrastructure/jobs/session-revocation-rehydrator.service';
@@ -54,9 +58,9 @@ import {
   CorrelationMiddleware,
 } from './interfaces/http/correlation.middleware';
 import { HealthController } from './interfaces/http/health.controller';
-import { JwtAuthGuard } from './interfaces/http/jwt-auth.guard';
 import { MetricsController } from './interfaces/http/metrics.controller';
 import { WellKnownController } from './interfaces/http/well-known.controller';
+import { JwtAuthGuard } from './shared/jwt-auth/jwt-auth.guard';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -93,7 +97,9 @@ export class AppModule implements NestModule {
         { provide: REFRESH_RATE_LIMITER, useClass: RedisRefreshRateLimiter },
         { provide: ACCESS_TOKEN_SIGNER, useClass: JoseAccessTokenSigner },
         { provide: ACCESS_TOKEN_VERIFIER, useClass: JoseAccessTokenVerifier },
+        { provide: JWT_AUTH_VERIFIER, useExisting: ACCESS_TOKEN_VERIFIER },
         { provide: SESSION_REVOCATION_STORE, useClass: RedisSessionRevocationStore },
+        { provide: JWT_AUTH_REVOCATION, useExisting: SESSION_REVOCATION_STORE },
         { provide: SECURITY_EVENT_RECORDER, useClass: PinoSecurityEventRecorder },
         { provide: MESSAGE_PUBLISHER, useClass: SnsMessagePublisher },
         OutboxRelayService,
