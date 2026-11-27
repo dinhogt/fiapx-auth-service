@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  RefreshWithSession,
-  SessionRepository,
-} from '../../domain/ports/session-repository';
+import type { RefreshWithSession, SessionRepository } from '../../domain/ports/session-repository';
 import { RefreshToken } from '../../domain/refresh-token';
 import { Session, type SessionRevokedReason } from '../../domain/session';
 import { PrismaService } from './prisma.service';
@@ -116,11 +113,7 @@ export class PrismaSessionRepository implements SessionRepository {
     });
   }
 
-  async revokeSession(
-    sessionId: string,
-    reason: SessionRevokedReason,
-    at: Date,
-  ): Promise<void> {
+  async revokeSession(sessionId: string, reason: SessionRevokedReason, at: Date): Promise<void> {
     await this.prisma.session.update({
       where: { id: sessionId },
       data: {

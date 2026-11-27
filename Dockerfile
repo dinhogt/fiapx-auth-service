@@ -9,16 +9,24 @@ RUN --mount=type=secret,id=npm_token NPM_TOKEN=$(cat /run/secrets/npm_token 2>/d
 COPY tsconfig*.json nest-cli.json ./
 COPY prisma ./prisma
 COPY src ./src
-RUN yarn prisma generate && yarn build && yarn workspaces focus --production
+RUN --mount=type=secret,id=npm_token \
+  export NPM_TOKEN="$(cat /run/secrets/npm_token 2>/dev/null || true)" && \
+  yarn prisma generate && yarn build && yarn workspaces focus --production
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN groupadd -g 10001 app && useradd -u 10001 -g app -s /usr/sbin/nologin app \
- && apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+ && apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
  && mkdir -p /etc/ssl/rds \
  && curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /etc/ssl/rds/global-bundle.pem \
- && apt-get purge -y curl && rm -rf /var/lib/apt/lists/*
+ && apt-get purge -y curl \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=build --chown=app:app /app/node_modules ./node_modules
 COPY --from=build --chown=app:app /app/dist ./dist
 COPY --from=build --chown=app:app /app/prisma ./prisma

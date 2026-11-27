@@ -7,15 +7,8 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
-
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-
-const TOPIC_ARN =
-  process.env.USER_EVENTS_TOPIC_ARN ??
-  'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
 
 describe('POST /auth/register (AC-10, AC-11)', () => {
   let app: NestExpressApplication;
@@ -23,32 +16,29 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
 
   beforeAll(async () => {
     const { pem, kid } = await createTestRsaPem();
-    process.env.NODE_ENV = 'test';
-    process.env.APP_ENV = 'test';
-    process.env.PORT = '3001';
-    process.env.LOG_LEVEL = 'silent';
-    process.env.DATABASE_URL = DATABASE_URL;
-    process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    process.env.AWS_REGION = 'us-east-1';
-    process.env.OTEL_SERVICE_NAME = 'auth-service';
-    process.env.JWT_ISSUER = 'http://localhost:3001';
-    process.env.JWT_AUDIENCE = 'fiapx-api';
-    process.env.JWKS_URL = 'http://localhost:3001/.well-known/jwks.json';
-    process.env.TRUST_GATEWAY_IP = 'false';
-    process.env.USER_EVENTS_TOPIC_ARN = TOPIC_ARN;
-    process.env.JWT_PRIVATE_KEY_PEM = pem;
-    process.env.JWT_KID = kid;
+    const infra = await applyIntegrationEnv({
+      NODE_ENV: 'test',
+      APP_ENV: 'test',
+      PORT: '3001',
+      LOG_LEVEL: 'silent',
+      OTEL_SERVICE_NAME: 'auth-service',
+      JWT_ISSUER: 'http://localhost:3001',
+      JWT_AUDIENCE: 'fiapx-api',
+      JWKS_URL: 'http://localhost:3001/.well-known/jwks.json',
+      TRUST_GATEWAY_IP: 'false',
+      JWT_PRIVATE_KEY_PEM: pem,
+      JWT_KID: kid,
+    });
 
     const env = loadEnv();
-    prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+    prisma = new PrismaClient({ datasources: { db: { url: infra.databaseUrl } } });
     await prisma.$connect();
-
     app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
       logger: false,
     });
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
-  }, 30_000);
+  }, 120_000);
 
   afterAll(async () => {
     if (app) {
@@ -101,7 +91,7 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
     const outbox = await prisma.outbox.findMany({ where: { aggregateId: user.id } });
     expect(outbox).toHaveLength(1);
     expect(outbox[0]?.type).toBe('user.registered');
-    expect(outbox[0]?.destination).toBe(TOPIC_ARN);
+    expect(outbox[0]?.destination).toBe(process.env.USER_EVENTS_TOPIC_ARN);
     expect(outbox[0]?.publishedAt).toBeNull();
     const payload = outbox[0]?.payload as {
       type: string;
@@ -115,7 +105,7 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
         name: 'Ana Silva',
       }),
     );
-  }, 30_000);
+  }, 120_000);
 
   it('AC-11: returns 409 when email is already registered', async () => {
     const email = `ac11-${randomUUID()}@example.com`;
@@ -138,5 +128,5 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
     expect(users).toHaveLength(1);
     const outbox = await prisma.outbox.findMany({ where: { aggregateId: users[0]?.id } });
     expect(outbox).toHaveLength(1);
-  }, 30_000);
+  }, 120_000);
 });

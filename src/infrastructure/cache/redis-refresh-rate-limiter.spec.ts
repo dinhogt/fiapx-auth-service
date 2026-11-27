@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await */
-import {
-  REFRESH_RATE_LIMIT,
-  RedisRefreshRateLimiter,
-} from './redis-refresh-rate-limiter';
+import { REFRESH_RATE_LIMIT, RedisRefreshRateLimiter } from './redis-refresh-rate-limiter';
 import { RateLimitUnavailableError } from '../../domain/ports/refresh-rate-limiter';
 import type { RedisService } from './redis.service';
 

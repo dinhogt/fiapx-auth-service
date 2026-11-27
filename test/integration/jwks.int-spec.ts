@@ -6,6 +6,7 @@ import { AppModule } from '../../src/app.module';
 import { JwtKeyService } from '../../src/infrastructure/auth/jwt-key.service';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
 
 describe('JWKS / OIDC discovery (F2.4 / D30)', () => {
@@ -17,24 +18,17 @@ describe('JWKS / OIDC discovery (F2.4 / D30)', () => {
     const { pem, kid: generatedKid } = await createTestRsaPem();
     kid = generatedKid;
 
-    process.env.NODE_ENV = 'test';
-    process.env.APP_ENV = 'test';
-    process.env.PORT = '3001';
-    process.env.LOG_LEVEL = 'silent';
-    process.env.DATABASE_URL =
-      process.env.DATABASE_URL ??
-      'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-    process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    process.env.AWS_REGION = 'us-east-1';
-    process.env.OTEL_SERVICE_NAME = 'auth-service';
-    process.env.JWT_ISSUER = 'http://127.0.0.1:0';
-    process.env.JWT_AUDIENCE = 'fiapx-api';
-    process.env.JWKS_URL = 'http://127.0.0.1:0/.well-known/jwks.json';
-    process.env.TRUST_GATEWAY_IP = 'false';
-    process.env.USER_EVENTS_TOPIC_ARN =
-      'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
-    process.env.JWT_PRIVATE_KEY_PEM = pem;
-    process.env.JWT_KID = kid;
+    await applyIntegrationEnv({
+      NODE_ENV: 'test',
+      APP_ENV: 'test',
+      PORT: '3001',
+      LOG_LEVEL: 'silent',
+      OTEL_SERVICE_NAME: 'auth-service',
+      JWT_AUDIENCE: 'fiapx-api',
+      TRUST_GATEWAY_IP: 'false',
+      JWT_PRIVATE_KEY_PEM: pem,
+      JWT_KID: kid,
+    });
 
     // Placeholder issuer/jwks until listen assigns a port; reload after listen.
     const bootstrapEnv = loadEnv({
@@ -42,7 +36,6 @@ describe('JWKS / OIDC discovery (F2.4 / D30)', () => {
       JWT_ISSUER: 'http://127.0.0.1:3999',
       JWKS_URL: 'http://127.0.0.1:3999/.well-known/jwks.json',
     });
-
     app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(bootstrapEnv), {
       logger: false,
     });
@@ -53,7 +46,7 @@ describe('JWKS / OIDC discovery (F2.4 / D30)', () => {
       throw new Error('Failed to bind HTTP server for JWKS integration test');
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
-  }, 30_000);
+  }, 120_000);
 
   afterAll(async () => {
     await app?.close();
@@ -109,5 +102,5 @@ describe('JWKS / OIDC discovery (F2.4 / D30)', () => {
     expect(protectedHeader.kid).toBe(kid);
     expect(protectedHeader.alg).toBe('RS256');
     expect(payload.sub).toBe('11111111-1111-4111-8111-111111111111');
-  }, 30_000);
+  }, 120_000);
 });

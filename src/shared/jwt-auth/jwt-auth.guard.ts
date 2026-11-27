@@ -8,10 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import {
-  AccessTokenVerificationError,
-  type AccessTokenVerifier,
-} from './access-token-verifier';
+import { AccessTokenVerificationError, type AccessTokenVerifier } from './access-token-verifier';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import {
   SessionRevocationStoreUnavailableError,

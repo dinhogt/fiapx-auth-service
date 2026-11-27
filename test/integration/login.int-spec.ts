@@ -7,13 +7,8 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { loadEnv } from '../../src/infrastructure/config/env';
 import { ProblemDetailsFilter } from '../../src/interfaces/http/problem-details.filter';
+import { applyIntegrationEnv } from '../helpers/integration-infra';
 import { createTestRsaPem } from '../helpers/rsa-pem';
-
-const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
-
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
 async function bootApp(overrides: Record<string, string> = {}): Promise<{
   app: NestExpressApplication;
@@ -21,20 +16,16 @@ async function bootApp(overrides: Record<string, string> = {}): Promise<{
   prisma: PrismaClient;
 }> {
   const { pem, kid } = await createTestRsaPem();
-  Object.assign(process.env, {
+  const infra = await applyIntegrationEnv({
     NODE_ENV: 'test',
     APP_ENV: 'test',
     PORT: '3001',
     LOG_LEVEL: 'silent',
-    DATABASE_URL,
-    REDIS_URL,
-    AWS_REGION: 'us-east-1',
     OTEL_SERVICE_NAME: 'auth-service',
     JWT_ISSUER: 'http://127.0.0.1:3999',
     JWT_AUDIENCE: 'fiapx-api',
     JWKS_URL: 'http://127.0.0.1:3999/.well-known/jwks.json',
     TRUST_GATEWAY_IP: 'true',
-    USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
     JWT_PRIVATE_KEY_PEM: pem,
     JWT_KID: kid,
     ACCESS_TTL: '900',
@@ -44,9 +35,8 @@ async function bootApp(overrides: Record<string, string> = {}): Promise<{
   });
 
   const env = loadEnv();
-  const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: infra.databaseUrl } } });
   await prisma.$connect();
-
   const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
     logger: false,
   });
@@ -66,7 +56,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
 
   beforeAll(async () => {
     ({ app, baseUrl, prisma } = await bootApp());
-  }, 60_000);
+  }, 180_000);
 
   afterAll(async () => {
     await app?.close();
@@ -81,7 +71,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
     await prisma.session.deleteMany();
     await prisma.outbox.deleteMany();
     await prisma.user.deleteMany();
-  }, 30_000);
+  }, 120_000);
 
   it('AC-12: wrong password returns 401; 6th attempt returns 429', async () => {
     const email = `login-${randomUUID()}@example.com`;
@@ -111,7 +101,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
       .send({ email, password: 'wrong-password!!' })
       .expect(429);
     expect((limited.body as { status: number }).status).toBe(429);
-  }, 60_000);
+  }, 180_000);
 
   it('returns TokenPair with a JWKS-verifiable access token on success', async () => {
     const email = `ok-${randomUUID()}@example.com`;
@@ -153,7 +143,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
 
     const sessions = await prisma.session.findMany({ where: { userId: String(payload.sub) } });
     expect(sessions).toHaveLength(1);
-  }, 60_000);
+  }, 180_000);
 
   it('returns 503 when Redis is unavailable (fail-closed)', async () => {
     const down = await bootApp({ REDIS_URL: 'redis://127.0.0.1:1' });
@@ -174,5 +164,5 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
       await down.app.close();
       await down.prisma.$disconnect();
     }
-  }, 60_000);
+  }, 180_000);
 });

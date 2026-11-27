@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
 import { Reflector } from '@nestjs/core';
-import {
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AccessTokenVerificationError } from '../../domain/ports/access-token-verifier';
 import { SessionRevocationStoreUnavailableError } from '../../domain/ports/session-revocation-store';
@@ -35,9 +32,7 @@ describe('JwtAuthGuard', () => {
   it('rejects missing Bearer tokens', async () => {
     const { reflector, context } = makeContext({});
     const guard = new JwtAuthGuard(reflector, { verify: jest.fn() }, { isRevoked: jest.fn() });
-    await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects invalid tokens and revoked sessions', async () => {
@@ -55,7 +50,11 @@ describe('JwtAuthGuard', () => {
       UnauthorizedException,
     );
 
-    const { reflector: r2, context: revokedCtx, req } = makeContext({
+    const {
+      reflector: r2,
+      context: revokedCtx,
+      req,
+    } = makeContext({
       authorization: 'Bearer good',
     });
     const revokedGuard = new JwtAuthGuard(

@@ -60,10 +60,9 @@ describe('AuthController', () => {
           }),
         ),
       } as unknown as RegisterUserUseCase;
-      const controller = makeController(
-        registerUser,
-        { execute: jest.fn() } as unknown as LoginUserUseCase,
-      );
+      const controller = makeController(registerUser, {
+        execute: jest.fn(),
+      } as unknown as LoginUserUseCase);
 
       const body = await controller.register(
         { name: 'Ana', email: 'ana@example.com', password: 'Str0ng-Passw0rd!' },
@@ -82,10 +81,9 @@ describe('AuthController', () => {
       const registerUser = {
         execute: jest.fn(() => Promise.resolve({ ok: false as const, code: 'EMAIL_IN_USE' })),
       } as unknown as RegisterUserUseCase;
-      const controller = makeController(
-        registerUser,
-        { execute: jest.fn() } as unknown as LoginUserUseCase,
-      );
+      const controller = makeController(registerUser, {
+        execute: jest.fn(),
+      } as unknown as LoginUserUseCase);
 
       await expect(
         controller.register(
@@ -246,9 +244,9 @@ describe('AuthController', () => {
         { execute: jest.fn() } as unknown as LoginUserUseCase,
         refresh,
       );
-      await expect(
-        controller.refresh({ refreshToken: 'old' }, makeReq()),
-      ).resolves.toMatchObject({ refreshToken: 'refresh2' });
+      await expect(controller.refresh({ refreshToken: 'old' }, makeReq())).resolves.toMatchObject({
+        refreshToken: 'refresh2',
+      });
     });
 
     it('maps REFRESH_REUSE to 401', async () => {
@@ -314,9 +312,9 @@ describe('AuthController', () => {
           { execute: jest.fn() } as unknown as LoginUserUseCase,
           refresh,
         );
-        await expect(
-          controller.refresh({ refreshToken: 'old' }, makeReq()),
-        ).rejects.toBeInstanceOf(UnauthorizedException);
+        await expect(controller.refresh({ refreshToken: 'old' }, makeReq())).rejects.toBeInstanceOf(
+          UnauthorizedException,
+        );
       }
     });
   });

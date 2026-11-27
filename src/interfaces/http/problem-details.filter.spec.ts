@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ProblemDetailsFilter } from './problem-details.filter';
@@ -18,7 +13,12 @@ function createHost(response: Response, request: Request): ArgumentsHost {
   } as ArgumentsHost;
 }
 
-function createResponse(): { response: Response; body: Record<string, unknown>; statusCode: { value: number }; contentType: { value: string } } {
+function createResponse(): {
+  response: Response;
+  body: Record<string, unknown>;
+  statusCode: { value: number };
+  contentType: { value: string };
+} {
   const body: Record<string, unknown> = {};
   const statusCode = { value: 0 };
   const contentType = { value: '' };
@@ -111,7 +111,10 @@ describe('ProblemDetailsFilter', () => {
       url: '/x',
     } as unknown as Request;
 
-    filter.catch(new HttpException('falha textual', HttpStatus.CONFLICT), createHost(first.response, request));
+    filter.catch(
+      new HttpException('falha textual', HttpStatus.CONFLICT),
+      createHost(first.response, request),
+    );
     expect(first.body.detail).toBe('falha textual');
     expect(first.body.title).toBe('Conflito');
 

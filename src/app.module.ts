@@ -38,10 +38,7 @@ import {
   SESSION_REVOCATION_STORE,
   USER_REPOSITORY,
 } from './infrastructure/config/tokens';
-import {
-  JWT_AUTH_REVOCATION,
-  JWT_AUTH_VERIFIER,
-} from './shared/jwt-auth/tokens';
+import { JWT_AUTH_REVOCATION, JWT_AUTH_VERIFIER } from './shared/jwt-auth/tokens';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
 import { SessionRevocationRehydratorService } from './infrastructure/jobs/session-revocation-rehydrator.service';

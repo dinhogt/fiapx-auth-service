@@ -4,11 +4,7 @@ import { SessionRevocationStoreUnavailableError } from '../../domain/ports/sessi
 import type { AuthEnv } from '../config/env';
 import { APP_ENV_CONFIG, SESSION_REVOCATION_STORE } from '../config/tokens';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  ADVISORY_LOCK_KEYS,
-  advisoryUnlock,
-  tryAdvisoryLock,
-} from './advisory-lock';
+import { ADVISORY_LOCK_KEYS, advisoryUnlock, tryAdvisoryLock } from './advisory-lock';
 
 const REHYDRATE_INTERVAL_MS = 60_000;
 

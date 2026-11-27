@@ -15,13 +15,15 @@ const user: PersistedUser = {
   createdAt: new Date(),
 };
 
-function makeDeps(overrides: {
-  users?: Partial<UserRepository>;
-  sessions?: Partial<SessionRepository>;
-  hasher?: Partial<PasswordHasher>;
-  rateLimiter?: Partial<LoginRateLimiter>;
-  signer?: Partial<AccessTokenSigner>;
-} = {}) {
+function makeDeps(
+  overrides: {
+    users?: Partial<UserRepository>;
+    sessions?: Partial<SessionRepository>;
+    hasher?: Partial<PasswordHasher>;
+    rateLimiter?: Partial<LoginRateLimiter>;
+    signer?: Partial<AccessTokenSigner>;
+  } = {},
+) {
   const users: UserRepository = {
     findById: jest.fn(async () => user),
     findByEmail: jest.fn(async () => user),

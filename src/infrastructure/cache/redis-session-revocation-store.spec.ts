@@ -38,7 +38,9 @@ describe('RedisSessionRevocationStore', () => {
       },
     } as unknown as RedisService;
     const store = new RedisSessionRevocationStore(redis, env);
-    await expect(store.revoke('sid')).rejects.toBeInstanceOf(SessionRevocationStoreUnavailableError);
+    await expect(store.revoke('sid')).rejects.toBeInstanceOf(
+      SessionRevocationStoreUnavailableError,
+    );
     await expect(store.isRevoked('sid')).rejects.toBeInstanceOf(
       SessionRevocationStoreUnavailableError,
     );

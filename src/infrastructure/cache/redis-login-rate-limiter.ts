@@ -19,10 +19,7 @@ export class RedisLoginRateLimiter implements LoginRateLimiter {
     const ipKey = `rl:login:ip:${ip}`;
 
     try {
-      const [emailCount, ipCount] = await Promise.all([
-        this.hit(emailKey),
-        this.hit(ipKey),
-      ]);
+      const [emailCount, ipCount] = await Promise.all([this.hit(emailKey), this.hit(ipKey)]);
       if (emailCount > LOGIN_RATE_LIMIT || ipCount > LOGIN_RATE_LIMIT) {
         return 'block';
       }

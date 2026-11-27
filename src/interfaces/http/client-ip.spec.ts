@@ -1,10 +1,7 @@
 import type { Request } from 'express';
 import { resolveClientIp } from './client-ip';
 
-function makeReq(opts: {
-  headers?: Record<string, string>;
-  remoteAddress?: string;
-}): Request {
+function makeReq(opts: { headers?: Record<string, string>; remoteAddress?: string }): Request {
   return {
     header: (name: string) => opts.headers?.[name.toLowerCase()],
     socket: { remoteAddress: opts.remoteAddress },

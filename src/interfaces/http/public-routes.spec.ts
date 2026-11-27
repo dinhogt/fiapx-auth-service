@@ -39,9 +39,7 @@ function collectControllerRoutes(
   ControllerClass: new (...args: never[]) => object,
 ): Array<{ key: string; isPublic: boolean }> {
   const controllerPath = Reflect.getMetadata(PATH_METADATA, ControllerClass) as
-    | string
-    | string[]
-    | undefined;
+    string | string[] | undefined;
   const proto = ControllerClass.prototype as Record<string, unknown>;
   const routes: Array<{ key: string; isPublic: boolean }> = [];
 
@@ -75,8 +73,14 @@ describe('public routes inventory (V4.2)', () => {
       ...collectControllerRoutes(WellKnownController),
     ];
 
-    const publicKeys = discovered.filter((r) => r.isPublic).map((r) => r.key).sort();
-    const protectedKeys = discovered.filter((r) => !r.isPublic).map((r) => r.key).sort();
+    const publicKeys = discovered
+      .filter((r) => r.isPublic)
+      .map((r) => r.key)
+      .sort();
+    const protectedKeys = discovered
+      .filter((r) => !r.isPublic)
+      .map((r) => r.key)
+      .sort();
 
     expect(publicKeys).toEqual([...AUTH_PUBLIC_ROUTES].sort());
     expect(protectedKeys).toEqual([...AUTH_PROTECTED_ROUTES].sort());

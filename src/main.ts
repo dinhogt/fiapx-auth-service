@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { loadEnv } from './infrastructure/config/env';
+import { setupSwaggerUi } from './infrastructure/http/swagger';
 import { shutdownOpenTelemetry, startOpenTelemetry } from './infrastructure/observability/otel';
 import { ProblemDetailsFilter } from './interfaces/http/problem-details.filter';
 
@@ -18,6 +19,7 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   app.use(helmet());
   app.useGlobalFilters(new ProblemDetailsFilter());
+  setupSwaggerUi(app, env.APP_ENV);
 
   await app.listen(env.PORT);
 
