@@ -2,6 +2,7 @@ import { buildEnvelope, MessageSource } from '@dinhogt/fiapx-contracts';
 import { randomUUID } from 'node:crypto';
 import { Email } from '../domain/email';
 import { Password } from '../domain/password';
+import type { OutboxRelay } from '../domain/ports/outbox-relay';
 import type { PasswordHasher } from '../domain/ports/password-hasher';
 import type { UserRepository } from '../domain/ports/user-repository';
 import { failure, type Result, success } from '../domain/result';
@@ -27,6 +28,7 @@ export class RegisterUserUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly passwordHasher: PasswordHasher,
+    private readonly outboxRelay?: OutboxRelay,
   ) {}
 
   async execute(command: RegisterUserCommand): Promise<Result<RegisteredUser>> {
@@ -80,6 +82,8 @@ export class RegisterUserUseCase {
           payload: envelope,
         },
       );
+
+      this.outboxRelay?.kick();
 
       return success({
         id: user.id,

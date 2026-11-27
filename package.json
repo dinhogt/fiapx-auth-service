@@ -23,6 +23,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.1179.0",
+    "@aws-sdk/client-sqs": "^3.1179.0",
     "@dinhogt/fiapx-contracts": "1.0.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",

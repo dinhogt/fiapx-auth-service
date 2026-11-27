@@ -33,7 +33,8 @@ describe('RegisterUserUseCase', () => {
   it('registers a user and writes user.registered to the outbox', async () => {
     const users = makeRepo();
     const hasher = makeHasher();
-    const useCase = new RegisterUserUseCase(users, hasher);
+    const outboxRelay = { kick: jest.fn() };
+    const useCase = new RegisterUserUseCase(users, hasher, outboxRelay);
 
     const result = await useCase.execute({
       name: 'Ana Silva',
@@ -51,6 +52,7 @@ describe('RegisterUserUseCase', () => {
     expect(result.value.email).toBe('ana@example.com');
     expect(result.value.name).toBe('Ana Silva');
     expect(hasher.hash).toHaveBeenCalledWith('Str0ng-Passw0rd!');
+    expect(outboxRelay.kick).toHaveBeenCalled();
     expect(users.createWithOutbox).toHaveBeenCalledWith(
       expect.objectContaining({
         email: 'ana@example.com',

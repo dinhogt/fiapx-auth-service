@@ -81,7 +81,7 @@ describe('POST /auth/login (AC-12, F2.5)', () => {
     await prisma.session.deleteMany();
     await prisma.outbox.deleteMany();
     await prisma.user.deleteMany();
-  });
+  }, 30_000);
 
   it('AC-12: wrong password returns 401; 6th attempt returns 429', async () => {
     const email = `login-${randomUUID()}@example.com`;

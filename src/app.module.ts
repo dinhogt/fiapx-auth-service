@@ -15,6 +15,7 @@ import type { SecurityEventRecorder } from './domain/ports/security-event-record
 import type { SessionRepository } from './domain/ports/session-repository';
 import type { SessionRevocationStore } from './domain/ports/session-revocation-store';
 import type { UserRepository } from './domain/ports/user-repository';
+import type { OutboxRelay } from './domain/ports/outbox-relay';
 import { JoseAccessTokenSigner } from './infrastructure/auth/jose-access-token-signer';
 import { JoseAccessTokenVerifier } from './infrastructure/auth/jose-access-token-verifier';
 import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
@@ -28,6 +29,8 @@ import {
   ACCESS_TOKEN_VERIFIER,
   APP_ENV_CONFIG,
   LOGIN_RATE_LIMITER,
+  MESSAGE_PUBLISHER,
+  OUTBOX_RELAY,
   PASSWORD_HASHER,
   REFRESH_RATE_LIMITER,
   SECURITY_EVENT_RECORDER,
@@ -37,6 +40,9 @@ import {
 } from './infrastructure/config/tokens';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
+import { SessionRevocationRehydratorService } from './infrastructure/jobs/session-revocation-rehydrator.service';
+import { OutboxRelayService } from './infrastructure/messaging/outbox-relay.service';
+import { SnsMessagePublisher } from './infrastructure/messaging/sns-message-publisher';
 import { PinoSecurityEventRecorder } from './infrastructure/observability/pino-security-event-recorder';
 import { pinoRedactPaths } from './infrastructure/observability/redact';
 import { PrismaSessionRepository } from './infrastructure/prisma/prisma-session.repository';
@@ -89,12 +95,16 @@ export class AppModule implements NestModule {
         { provide: ACCESS_TOKEN_VERIFIER, useClass: JoseAccessTokenVerifier },
         { provide: SESSION_REVOCATION_STORE, useClass: RedisSessionRevocationStore },
         { provide: SECURITY_EVENT_RECORDER, useClass: PinoSecurityEventRecorder },
+        { provide: MESSAGE_PUBLISHER, useClass: SnsMessagePublisher },
+        OutboxRelayService,
+        { provide: OUTBOX_RELAY, useExisting: OutboxRelayService },
+        SessionRevocationRehydratorService,
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         {
           provide: RegisterUserUseCase,
-          useFactory: (users: UserRepository, hasher: PasswordHasher) =>
-            new RegisterUserUseCase(users, hasher),
-          inject: [USER_REPOSITORY, PASSWORD_HASHER],
+          useFactory: (users: UserRepository, hasher: PasswordHasher, relay: OutboxRelay) =>
+            new RegisterUserUseCase(users, hasher, relay),
+          inject: [USER_REPOSITORY, PASSWORD_HASHER, OUTBOX_RELAY],
         },
         {
           provide: LoginUserUseCase,
