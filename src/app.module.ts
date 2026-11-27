@@ -1,17 +1,30 @@
 import { DynamicModule, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import type { IncomingMessage } from 'node:http';
+import { LoginUserUseCase } from './application/login-user.use-case';
 import { RegisterUserUseCase } from './application/register-user.use-case';
+import type { PasswordHasher } from './domain/ports/password-hasher';
+import type { AccessTokenSigner } from './domain/ports/access-token-signer';
+import type { LoginRateLimiter } from './domain/ports/login-rate-limiter';
+import type { SessionRepository } from './domain/ports/session-repository';
+import type { UserRepository } from './domain/ports/user-repository';
 import type { AuthEnv } from './infrastructure/config/env';
 import {
+  ACCESS_TOKEN_SIGNER,
   APP_ENV_CONFIG,
+  LOGIN_RATE_LIMITER,
   PASSWORD_HASHER,
+  SESSION_REPOSITORY,
   USER_REPOSITORY,
 } from './infrastructure/config/tokens';
+import { JoseAccessTokenSigner } from './infrastructure/auth/jose-access-token-signer';
 import { JwtKeyService } from './infrastructure/auth/jwt-key.service';
+import { RedisLoginRateLimiter } from './infrastructure/cache/redis-login-rate-limiter';
+import { RedisService } from './infrastructure/cache/redis.service';
 import { Argon2PasswordHasher } from './infrastructure/crypto/argon2-password-hasher';
 import { HealthService } from './infrastructure/health/health.service';
 import { pinoRedactPaths } from './infrastructure/observability/redact';
+import { PrismaSessionRepository } from './infrastructure/prisma/prisma-session.repository';
 import { PrismaUserRepository } from './infrastructure/prisma/prisma-user.repository';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 import { AuthController } from './interfaces/http/auth.controller';
@@ -22,8 +35,6 @@ import {
 import { HealthController } from './interfaces/http/health.controller';
 import { MetricsController } from './interfaces/http/metrics.controller';
 import { WellKnownController } from './interfaces/http/well-known.controller';
-import type { PasswordHasher } from './domain/ports/password-hasher';
-import type { UserRepository } from './domain/ports/user-repository';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -52,13 +63,44 @@ export class AppModule implements NestModule {
         HealthService,
         JwtKeyService,
         PrismaService,
+        RedisService,
         { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
         { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
+        { provide: SESSION_REPOSITORY, useClass: PrismaSessionRepository },
+        { provide: LOGIN_RATE_LIMITER, useClass: RedisLoginRateLimiter },
+        { provide: ACCESS_TOKEN_SIGNER, useClass: JoseAccessTokenSigner },
         {
           provide: RegisterUserUseCase,
           useFactory: (users: UserRepository, hasher: PasswordHasher) =>
             new RegisterUserUseCase(users, hasher),
           inject: [USER_REPOSITORY, PASSWORD_HASHER],
+        },
+        {
+          provide: LoginUserUseCase,
+          useFactory: (
+            users: UserRepository,
+            sessions: SessionRepository,
+            hasher: PasswordHasher,
+            rateLimiter: LoginRateLimiter,
+            signer: AccessTokenSigner,
+            appEnv: AuthEnv,
+          ) =>
+            new LoginUserUseCase(
+              users,
+              sessions,
+              hasher,
+              rateLimiter,
+              signer,
+              appEnv.REFRESH_IDLE_TTL,
+            ),
+          inject: [
+            USER_REPOSITORY,
+            SESSION_REPOSITORY,
+            PASSWORD_HASHER,
+            LOGIN_RATE_LIMITER,
+            ACCESS_TOKEN_SIGNER,
+            APP_ENV_CONFIG,
+          ],
         },
       ],
     };

@@ -4,7 +4,8 @@ import type { Config } from 'jest';
 const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testRegex: '.*\\.(spec|int-spec)\\.ts$',
+  // Unit: *.spec.ts. Integration: yarn test:int (*.int-spec.ts, --runInBand).
+  testRegex: '.*\\.spec\\.ts$',
   transform: { '^.+\\.ts$': 'ts-jest' },
   testEnvironment: 'node',
   collectCoverageFrom: [

@@ -15,6 +15,9 @@ const env: AuthEnv = {
   JWKS_URL: 'http://localhost:3001/.well-known/jwks.json',
   JWT_PRIVATE_KEY_PEM: 'placeholder-not-a-pem',
   JWT_KID: 'test-kid',
+  ACCESS_TTL: 900,
+  REFRESH_IDLE_TTL: 3600,
+  SESSION_ABSOLUTE_TTL: 28_800,
   TRUST_GATEWAY_IP: false,
   USER_EVENTS_TOPIC_ARN: 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events',
 };

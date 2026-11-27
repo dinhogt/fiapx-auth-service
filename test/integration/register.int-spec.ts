@@ -136,7 +136,7 @@ describe('POST /auth/register (AC-10, AC-11)', () => {
 
     const users = await prisma.user.findMany({ where: { email: email.toLowerCase() } });
     expect(users).toHaveLength(1);
-    const outbox = await prisma.outbox.findMany();
+    const outbox = await prisma.outbox.findMany({ where: { aggregateId: users[0]?.id } });
     expect(outbox).toHaveLength(1);
   }, 30_000);
 });

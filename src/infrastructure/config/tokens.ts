@@ -1,3 +1,6 @@
 export const APP_ENV_CONFIG = Symbol('APP_ENV_CONFIG');
 export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
+export const SESSION_REPOSITORY = Symbol('SESSION_REPOSITORY');
+export const LOGIN_RATE_LIMITER = Symbol('LOGIN_RATE_LIMITER');
+export const ACCESS_TOKEN_SIGNER = Symbol('ACCESS_TOKEN_SIGNER');

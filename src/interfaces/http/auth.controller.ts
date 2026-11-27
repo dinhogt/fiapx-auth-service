@@ -4,21 +4,32 @@ import {
   ConflictException,
   Controller,
   HttpCode,
+  HttpException,
+  HttpStatus,
   Inject,
   Post,
   Req,
+  ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { LoginUserUseCase } from '../../application/login-user.use-case';
 import { RegisterUserUseCase } from '../../application/register-user.use-case';
 import type { AuthEnv } from '../../infrastructure/config/env';
 import { APP_ENV_CONFIG } from '../../infrastructure/config/tokens';
+import { resolveClientIp } from './client-ip';
 import { CORRELATION_HEADER, readCorrelationId } from './correlation.middleware';
 import { buildTraceparent } from './traceparent';
 
 const registerBodySchema = z.object({
   name: z.string(),
+  email: z.string(),
+  password: z.string(),
+});
+
+const loginBodySchema = z.object({
   email: z.string(),
   password: z.string(),
 });
@@ -30,6 +41,7 @@ const UUID_RE =
 export class AuthController {
   constructor(
     private readonly registerUser: RegisterUserUseCase,
+    private readonly loginUser: LoginUserUseCase,
     @Inject(APP_ENV_CONFIG) private readonly env: AuthEnv,
   ) {}
 
@@ -70,6 +82,33 @@ export class AuthController {
       createdAt: result.value.createdAt.toISOString(),
     };
   }
+
+  @Post('login')
+  @HttpCode(200)
+  async login(@Body() body: unknown, @Req() req: Request) {
+    const parsed = loginBodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        detail: 'Dados de login inválidos.',
+        errors: parsed.error.issues.map((issue) => ({
+          field: issue.path.join('.') || 'body',
+          message: issue.message,
+        })),
+      });
+    }
+
+    const result = await this.loginUser.execute({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      clientIp: resolveClientIp(req, this.env.TRUST_GATEWAY_IP),
+    });
+
+    if (!result.ok) {
+      throw mapLoginFailure(result.code);
+    }
+
+    return result.value;
+  }
 }
 
 function mapRegisterFailure(code: string): Error {
@@ -98,6 +137,28 @@ function mapRegisterFailure(code: string): Error {
       });
     default:
       return new BadRequestException('Dados de cadastro inválidos.');
+  }
+}
+
+function mapLoginFailure(code: string): Error {
+  switch (code) {
+    case 'INVALID_EMAIL':
+    case 'INVALID_PASSWORD':
+      return new BadRequestException({
+        detail: 'Dados de login inválidos.',
+        errors: [{ field: code === 'INVALID_EMAIL' ? 'email' : 'password', message: 'Valor inválido.' }],
+      });
+    case 'INVALID_CREDENTIALS':
+      return new UnauthorizedException('Credenciais inválidas.');
+    case 'RATE_LIMITED':
+      return new HttpException(
+        'Muitas tentativas. Tente novamente em breve.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    case 'RATE_LIMIT_UNAVAILABLE':
+      return new ServiceUnavailableException('Serviço de autenticação temporariamente indisponível.');
+    default:
+      return new UnauthorizedException('Credenciais inválidas.');
   }
 }
 

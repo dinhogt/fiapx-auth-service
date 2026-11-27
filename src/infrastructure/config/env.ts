@@ -23,6 +23,9 @@ export const authEnvSchema = z.object({
   JWKS_URL: z.string().url(),
   JWT_PRIVATE_KEY_PEM: z.string().min(1),
   JWT_KID: z.string().min(1),
+  ACCESS_TTL: z.coerce.number().int().positive().default(900),
+  REFRESH_IDLE_TTL: z.coerce.number().int().positive().default(3600),
+  SESSION_ABSOLUTE_TTL: z.coerce.number().int().positive().default(28_800),
   TRUST_GATEWAY_IP: booleanFromEnv,
   USER_EVENTS_TOPIC_ARN: z.string().min(1),
 });

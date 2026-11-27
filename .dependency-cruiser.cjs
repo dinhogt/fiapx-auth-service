@@ -18,7 +18,10 @@ module.exports = {
     {
       name: 'no-orphans',
       severity: 'warn',
-      from: { orphan: true, pathNot: '\\.d\\.ts$|main\\.ts$|src/domain/ports/' },
+      from: {
+        orphan: true,
+        pathNot: '\\.d\\.ts$|main\\.ts$|src/domain/ports/|client-ip\\.ts$',
+      },
       to: {},
     },
   ],
