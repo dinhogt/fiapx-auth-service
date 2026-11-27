@@ -16,6 +16,7 @@
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "test": "jest",
     "test:cov": "jest --coverage",
+    "test:domain": "jest --coverage --collectCoverageFrom='src/domain/**/*.ts' --coveragePathIgnorePatterns='\\.spec\\.ts$' --coverageThreshold='{\"global\":{\"statements\":90,\"branches\":90,\"functions\":90,\"lines\":90}}' src/domain",
     "prisma": "prisma",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy"
