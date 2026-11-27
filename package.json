@@ -20,7 +20,8 @@
     "test:domain": "jest --coverage --collectCoverageFrom='src/domain/**/*.ts' --coveragePathIgnorePatterns='\\.spec\\.ts$' --coverageThreshold='{\"global\":{\"statements\":90,\"branches\":90,\"functions\":90,\"lines\":90}}' src/domain",
     "prisma": "prisma",
     "prisma:generate": "prisma generate",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "openapi:export": "ts-node --transpile-only scripts/export-openapi.ts"
   },
   "dependencies": {
     "@aws-sdk/client-sns": "^3.1179.0",
@@ -29,6 +30,7 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/swagger": "11",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.62.1",
     "@opentelemetry/core": "^2.0.1",

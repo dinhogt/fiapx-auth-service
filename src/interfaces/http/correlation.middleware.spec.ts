@@ -65,8 +65,6 @@ describe('CorrelationMiddleware', () => {
       header: (name: string) => (name === CORRELATION_HEADER ? 'from-req' : undefined),
     } as unknown as Request;
     expect(readCorrelationId(req)).toBe('from-req');
-    expect(
-      readCorrelationId({ header: () => undefined } as unknown as Request),
-    ).toBe('unknown');
+    expect(readCorrelationId({ header: () => undefined } as unknown as Request)).toBe('unknown');
   });
 });

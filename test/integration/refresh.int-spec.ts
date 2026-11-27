@@ -63,10 +63,7 @@ async function bootApp(): Promise<{
   return { app, prisma };
 }
 
-async function registerAndLogin(
-  app: NestExpressApplication,
-  clientIp: string,
-): Promise<TokenPair> {
+async function registerAndLogin(app: NestExpressApplication, clientIp: string): Promise<TokenPair> {
   const email = `refresh-${randomUUID()}@example.com`;
   const password = 'Str0ng-Passw0rd!';
   await request(app.getHttpServer())

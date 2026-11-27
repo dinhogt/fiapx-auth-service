@@ -5,10 +5,7 @@ export const ADVISORY_LOCK_KEYS = {
   SESSION_REVOCATION_REHYDRATE: 826_401_001,
 } as const;
 
-export async function tryAdvisoryLock(
-  prisma: PrismaService,
-  key: number,
-): Promise<boolean> {
+export async function tryAdvisoryLock(prisma: PrismaService, key: number): Promise<boolean> {
   const rows = await prisma.$queryRaw<Array<{ locked: boolean }>>`
     SELECT pg_try_advisory_lock(${key}) AS locked
   `;

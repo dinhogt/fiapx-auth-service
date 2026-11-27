@@ -24,13 +24,15 @@ function makeSession(overrides: Partial<{ idleExpiresAt: Date; absoluteExpiresAt
   });
 }
 
-function makeDeps(overrides: {
-  sessions?: Partial<SessionRepository>;
-  rateLimiter?: Partial<RefreshRateLimiter>;
-  revocation?: Partial<SessionRevocationStore>;
-  signer?: Partial<AccessTokenSigner>;
-  security?: Partial<SecurityEventRecorder>;
-} = {}) {
+function makeDeps(
+  overrides: {
+    sessions?: Partial<SessionRepository>;
+    rateLimiter?: Partial<RefreshRateLimiter>;
+    revocation?: Partial<SessionRevocationStore>;
+    signer?: Partial<AccessTokenSigner>;
+    security?: Partial<SecurityEventRecorder>;
+  } = {},
+) {
   const issued = RefreshToken.issue('33333333-3333-4333-8333-333333333333');
   const sessions: SessionRepository = {
     createWithRefresh: jest.fn(),
@@ -142,9 +144,10 @@ describe('RefreshTokenUseCase', () => {
         }),
       },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' }),
-    ).resolves.toEqual({ ok: false, code: 'RATE_LIMIT_UNAVAILABLE' });
+    await expect(useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' })).resolves.toEqual({
+      ok: false,
+      code: 'RATE_LIMIT_UNAVAILABLE',
+    });
   });
 
   it('rejects absolute-expired sessions (AC-16)', async () => {
@@ -178,16 +181,18 @@ describe('RefreshTokenUseCase', () => {
     const { useCase } = makeDeps({
       rateLimiter: { consume: jest.fn(async () => 'block' as const) },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' }),
-    ).resolves.toEqual({ ok: false, code: 'RATE_LIMITED' });
+    await expect(useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' })).resolves.toEqual({
+      ok: false,
+      code: 'RATE_LIMITED',
+    });
   });
 
   it('rejects empty refresh tokens and revoked sessions', async () => {
     const { useCase: emptyCase } = makeDeps();
-    await expect(
-      emptyCase.execute({ refreshToken: '   ', clientIp: '1.1.1.1' }),
-    ).resolves.toEqual({ ok: false, code: 'INVALID_REFRESH_TOKEN' });
+    await expect(emptyCase.execute({ refreshToken: '   ', clientIp: '1.1.1.1' })).resolves.toEqual({
+      ok: false,
+      code: 'INVALID_REFRESH_TOKEN',
+    });
 
     const session = makeSession();
     session.revoke('LOGOUT');
@@ -210,9 +215,10 @@ describe('RefreshTokenUseCase', () => {
         findRefreshWithSessionByHash: jest.fn(async () => ({ refresh: issued, session })),
       },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' }),
-    ).resolves.toEqual({ ok: false, code: 'REFRESH_EXPIRED' });
+    await expect(useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' })).resolves.toEqual({
+      ok: false,
+      code: 'REFRESH_EXPIRED',
+    });
   });
 
   it('rethrows unexpected rate-limit errors', async () => {
@@ -223,9 +229,9 @@ describe('RefreshTokenUseCase', () => {
         }),
       },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' }),
-    ).rejects.toThrow('boom');
+    await expect(useCase.execute({ refreshToken: 'token', clientIp: '1.1.1.1' })).rejects.toThrow(
+      'boom',
+    );
   });
 
   it('swallows revocation-store outages during reuse handling', async () => {
@@ -242,9 +248,10 @@ describe('RefreshTokenUseCase', () => {
         }),
       },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' }),
-    ).resolves.toEqual({ ok: false, code: 'REFRESH_REUSE' });
+    await expect(useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' })).resolves.toEqual({
+      ok: false,
+      code: 'REFRESH_REUSE',
+    });
     expect(security.record).toHaveBeenCalled();
   });
 
@@ -262,9 +269,9 @@ describe('RefreshTokenUseCase', () => {
         }),
       },
     });
-    await expect(
-      useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' }),
-    ).rejects.toThrow('redis-crash');
+    await expect(useCase.execute({ refreshToken: 'x', clientIp: '1.1.1.1' })).rejects.toThrow(
+      'redis-crash',
+    );
   });
 
   it('handles defensive rotate failures and missing plain tokens', async () => {

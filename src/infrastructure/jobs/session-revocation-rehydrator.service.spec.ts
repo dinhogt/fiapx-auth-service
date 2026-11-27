@@ -38,11 +38,9 @@ describe('SessionRevocationRehydratorService', () => {
       revoke: jest.fn(),
       isRevoked: jest.fn(),
     };
-    const job = new SessionRevocationRehydratorService(
-      prisma,
-      revocation,
-      { ACCESS_TTL: 900 } as AuthEnv,
-    );
+    const job = new SessionRevocationRehydratorService(prisma, revocation, {
+      ACCESS_TTL: 900,
+    } as AuthEnv);
 
     await job.rehydrate();
     expect(prisma.session.findMany).not.toHaveBeenCalled();

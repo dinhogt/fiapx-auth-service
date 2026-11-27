@@ -1,8 +1,4 @@
-import {
-  SESSION_ABSOLUTE_MS,
-  SESSION_IDLE_MS,
-  Session,
-} from './session';
+import { SESSION_ABSOLUTE_MS, SESSION_IDLE_MS, Session } from './session';
 
 describe('Session', () => {
   const userId = '11111111-1111-1111-1111-111111111111';

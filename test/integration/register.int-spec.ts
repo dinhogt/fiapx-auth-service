@@ -14,8 +14,7 @@ const DATABASE_URL =
   'postgresql://auth_svc:change-me@localhost:5432/fiapx?schema=auth&connection_limit=5&sslmode=disable';
 
 const TOPIC_ARN =
-  process.env.USER_EVENTS_TOPIC_ARN ??
-  'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
+  process.env.USER_EVENTS_TOPIC_ARN ?? 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
 
 describe('POST /auth/register (AC-10, AC-11)', () => {
   let app: NestExpressApplication;

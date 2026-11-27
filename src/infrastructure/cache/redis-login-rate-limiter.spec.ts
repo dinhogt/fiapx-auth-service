@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await, @typescript-eslint/unbound-method */
-import {
-  LOGIN_RATE_LIMIT,
-  RedisLoginRateLimiter,
-} from './redis-login-rate-limiter';
+import { LOGIN_RATE_LIMIT, RedisLoginRateLimiter } from './redis-login-rate-limiter';
 import { RateLimitUnavailableError } from '../../domain/ports/login-rate-limiter';
 import type { RedisService } from './redis.service';
 

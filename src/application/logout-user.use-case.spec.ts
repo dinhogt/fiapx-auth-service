@@ -25,14 +25,11 @@ describe('LogoutUserUseCase', () => {
     };
     const useCase = new LogoutUserUseCase(sessions, revocation);
 
-    await expect(
-      useCase.execute({ sid: session.id, userId: session.userId }),
-    ).resolves.toEqual({ ok: true, value: undefined });
-    expect(sessions.revokeSession).toHaveBeenCalledWith(
-      session.id,
-      'LOGOUT',
-      expect.any(Date),
-    );
+    await expect(useCase.execute({ sid: session.id, userId: session.userId })).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(sessions.revokeSession).toHaveBeenCalledWith(session.id, 'LOGOUT', expect.any(Date));
     expect(revocation.revoke).toHaveBeenCalledWith(session.id);
   });
 
@@ -49,9 +46,10 @@ describe('LogoutUserUseCase', () => {
       isRevoked: jest.fn(),
     };
     const useCase = new LogoutUserUseCase(sessions, revocation);
-    await expect(
-      useCase.execute({ sid: 'missing', userId: 'u1' }),
-    ).resolves.toEqual({ ok: false, code: 'INVALID_SESSION' });
+    await expect(useCase.execute({ sid: 'missing', userId: 'u1' })).resolves.toEqual({
+      ok: false,
+      code: 'INVALID_SESSION',
+    });
   });
 
   it('is idempotent when the session is already revoked and swallows Redis outages', async () => {
@@ -71,9 +69,10 @@ describe('LogoutUserUseCase', () => {
       isRevoked: jest.fn(),
     };
     const useCase = new LogoutUserUseCase(sessions, revocation);
-    await expect(
-      useCase.execute({ sid: session.id, userId: session.userId }),
-    ).resolves.toEqual({ ok: true, value: undefined });
+    await expect(useCase.execute({ sid: session.id, userId: session.userId })).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    });
     expect(sessions.revokeSession).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,14 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExtraModels,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -25,6 +33,15 @@ import type { AuthEnv } from '../../infrastructure/config/env';
 import { APP_ENV_CONFIG } from '../../infrastructure/config/tokens';
 import { resolveClientIp } from './client-ip';
 import { CORRELATION_HEADER, readCorrelationId } from './correlation.middleware';
+import {
+  LoginBodyDto,
+  MeDto,
+  ProblemDetailsDto,
+  RefreshBodyDto,
+  RegisterBodyDto,
+  RegisteredUserDto,
+  TokenPairDto,
+} from './dto/auth.dto';
 import type { AuthenticatedRequest } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { buildTraceparent } from './traceparent';
@@ -44,9 +61,10 @@ const refreshBodySchema = z.object({
   refreshToken: z.string(),
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+@ApiTags('auth')
+@ApiExtraModels(ProblemDetailsDto)
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -61,6 +79,11 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(201)
+  @ApiOperation({ summary: 'Cadastra usuário e grava user.registered na outbox' })
+  @ApiBody({ type: RegisterBodyDto })
+  @ApiResponse({ status: 201, type: RegisteredUserDto })
+  @ApiResponse({ status: 400, type: ProblemDetailsDto })
+  @ApiResponse({ status: 409, type: ProblemDetailsDto })
   async register(@Body() body: unknown, @Req() req: Request) {
     const parsed = registerBodySchema.safeParse(body);
     if (!parsed.success) {
@@ -100,6 +123,12 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Autentica e emite TokenPair (access + refresh)' })
+  @ApiBody({ type: LoginBodyDto })
+  @ApiResponse({ status: 200, type: TokenPairDto })
+  @ApiResponse({ status: 401, type: ProblemDetailsDto })
+  @ApiResponse({ status: 429, type: ProblemDetailsDto })
+  @ApiResponse({ status: 503, type: ProblemDetailsDto })
   async login(@Body() body: unknown, @Req() req: Request) {
     const parsed = loginBodySchema.safeParse(body);
     if (!parsed.success) {
@@ -128,6 +157,11 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Rotaciona refresh token e emite novo TokenPair' })
+  @ApiBody({ type: RefreshBodyDto })
+  @ApiResponse({ status: 200, type: TokenPairDto })
+  @ApiResponse({ status: 401, type: ProblemDetailsDto })
+  @ApiResponse({ status: 429, type: ProblemDetailsDto })
   async refresh(@Body() body: unknown, @Req() req: Request) {
     const parsed = refreshBodySchema.safeParse(body);
     if (!parsed.success) {
@@ -154,6 +188,10 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Revoga a sessão (sid) no Postgres e no Redis' })
+  @ApiResponse({ status: 204, description: 'Sessão revogada' })
+  @ApiResponse({ status: 401, type: ProblemDetailsDto })
   async logout(@Req() req: AuthenticatedRequest): Promise<void> {
     const user = req.user;
     if (!user) {
@@ -171,6 +209,10 @@ export class AuthController {
 
   @Get('me')
   @HttpCode(200)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Retorna o perfil do usuário autenticado' })
+  @ApiResponse({ status: 200, type: MeDto })
+  @ApiResponse({ status: 401, type: ProblemDetailsDto })
   async me(@Req() req: AuthenticatedRequest) {
     const user = req.user;
     if (!user) {
@@ -220,7 +262,9 @@ function mapLoginFailure(code: string): Error {
     case 'INVALID_PASSWORD':
       return new BadRequestException({
         detail: 'Dados de login inválidos.',
-        errors: [{ field: code === 'INVALID_EMAIL' ? 'email' : 'password', message: 'Valor inválido.' }],
+        errors: [
+          { field: code === 'INVALID_EMAIL' ? 'email' : 'password', message: 'Valor inválido.' },
+        ],
       });
     case 'INVALID_CREDENTIALS':
       return new UnauthorizedException('Credenciais inválidas.');
@@ -230,7 +274,9 @@ function mapLoginFailure(code: string): Error {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     case 'RATE_LIMIT_UNAVAILABLE':
-      return new ServiceUnavailableException('Serviço de autenticação temporariamente indisponível.');
+      return new ServiceUnavailableException(
+        'Serviço de autenticação temporariamente indisponível.',
+      );
     default:
       return new UnauthorizedException('Credenciais inválidas.');
   }
@@ -244,7 +290,9 @@ function mapRefreshFailure(code: string): Error {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     case 'RATE_LIMIT_UNAVAILABLE':
-      return new ServiceUnavailableException('Serviço de autenticação temporariamente indisponível.');
+      return new ServiceUnavailableException(
+        'Serviço de autenticação temporariamente indisponível.',
+      );
     case 'INVALID_REFRESH_TOKEN':
     case 'REFRESH_REUSE':
     case 'REFRESH_EXPIRED':

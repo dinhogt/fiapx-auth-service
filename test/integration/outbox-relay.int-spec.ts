@@ -17,11 +17,9 @@ const DATABASE_URL =
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const AWS_ENDPOINT = process.env.AWS_ENDPOINT ?? 'http://localhost:4566';
 const USER_CONTACTS_QUEUE_URL =
-  process.env.USER_CONTACTS_QUEUE_URL ??
-  `${AWS_ENDPOINT}/000000000000/fiapx-local-user-contacts`;
+  process.env.USER_CONTACTS_QUEUE_URL ?? `${AWS_ENDPOINT}/000000000000/fiapx-local-user-contacts`;
 const TOPIC_ARN =
-  process.env.USER_EVENTS_TOPIC_ARN ??
-  'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
+  process.env.USER_EVENTS_TOPIC_ARN ?? 'arn:aws:sns:us-east-1:000000000000:fiapx-local-user-events';
 
 async function bootApp(): Promise<{
   app: NestExpressApplication;
